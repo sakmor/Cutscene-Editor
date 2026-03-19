@@ -1,0 +1,2315 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Animator Pro - 旗艦完整版 (Bug Fixes)</title>
+    <style>
+        :root {
+            --bg-color: #1e1e1e;
+            --panel-color: #252526;
+            --border-color: #3e3e42;
+            --text-color: #cccccc;
+            --accent-color: #007acc;
+            --record-color: #e67e22; 
+            --record-hover: #d35400; 
+            --success-color: #4ec9b0;
+            --danger-color: #c0392b;
+            --track-bg: #1a1a1a;
+            --track-header-bg: #2d2d30;
+        }
+
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            display: flex; flex-direction: column; margin: 0; height: 100vh; 
+            background-color: var(--bg-color); color: var(--text-color); 
+            overflow: hidden; font-size: 13px;
+        }
+
+        /* --- 上半部：工作區 --- */
+        #workspace { display: flex; flex-grow: 1; overflow: hidden; height: calc(100vh - 250px); }
+
+        #canvas-container { 
+            flex-grow: 1; position: relative; 
+            background-image: 
+                linear-gradient(45deg, #2b2b2b 25%, transparent 25%), 
+                linear-gradient(-45deg, #2b2b2b 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #2b2b2b 75%),
+                linear-gradient(-45deg, transparent 75%, #2b2b2b 75%);
+            background-size: 20px 20px; overflow: hidden; 
+        }
+        .axis-h, .axis-v { position: absolute; background: rgba(255,255,255,0.1); pointer-events: none; z-index: 1; }
+        .axis-h { width: 100%; height: 1px; top: 50%; left: 0; }
+        .axis-v { width: 1px; height: 100%; left: 50%; top: 0; }
+
+        .anim-object-wrapper {
+            position: absolute; top: 50%; left: 50%;
+            will-change: transform, opacity; cursor: grab; z-index: 2;
+            outline: 2px dashed rgba(255, 255, 255, 0); transition: outline 0.1s;
+            isolation: isolate;
+        }
+        .anim-object-wrapper.selected { outline: 2px solid var(--accent-color); box-shadow: 0 0 10px rgba(0, 122, 204, 0.4); }
+        .anim-object-wrapper img { display: block; pointer-events: none; max-width: none;}
+        .anim-object-content {
+            position: relative;
+            z-index: 1;
+            display: inline-block;
+        }
+        .anim-object-tint {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 2;
+            display: none;
+        }
+        .anim-object-wrapper.spine-object { width: 320px; height: 320px; }
+        .anim-object-wrapper.spine-object .anim-object-content {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .anim-object-wrapper.spine-object spine-skeleton {
+            display: block; width: 100%; height: 100%; pointer-events: none;
+        }
+
+        #sidebar { 
+            width: 320px; background-color: var(--panel-color); 
+            border-left: 1px solid var(--border-color); display: flex; flex-direction: column; overflow-y: auto;
+        }
+        
+        .panel-section { padding: 12px; border-bottom: 1px solid var(--border-color); }
+        h2 { margin: 0 0 8px 0; font-size: 15px; text-align: center; color: white; }
+        h3 { margin: 0 0 6px 0; font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 1px;}
+
+        .control-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px; }
+        .control-group label { font-size: 11px; color: #999; }
+        input[type="number"], input[type="text"], input[type="color"], select { 
+            width: 100%; padding: 4px 6px; box-sizing: border-box; 
+            background: #333; border: 1px solid var(--border-color); color: white; border-radius: 3px; font-family: monospace; font-size: 12px;
+        }
+        input[type="color"] { padding: 2px; height: 30px; }
+        input:disabled, select:disabled { opacity: 0.4; cursor: not-allowed; }
+        
+        .btn-add-obj-wrapper { position: relative; overflow: hidden; width: 100%; margin-bottom: 5px; }
+        .btn-add-obj {
+            display: block; width: 100%; padding: 6px; text-align: center; box-sizing: border-box;
+            background: #444; color: white; border: 1px solid #555; border-radius: 3px; cursor: pointer; font-weight: bold;
+        }
+        .btn-add-obj:hover { background: #555; }
+        #file-input, #spine-input { position: absolute; right: 0; top: 0; font-size: 100px; opacity: 0; cursor: pointer; }
+
+        /* 快門與更新按鈕 */
+        .btn-snapshot {
+            width: 100%; padding: 12px; font-size: 14px; font-weight: bold;
+            background-color: var(--record-color); color: white; border: none; border-radius: 5px; cursor: pointer;
+            box-shadow: 0 3px 0 #ba6618; transition: all 0.05s; margin-top: 5px;
+        }
+        .btn-snapshot:not(:disabled):hover { background-color: var(--record-hover); }
+        .btn-snapshot:not(:disabled):active { transform: translateY(2px); box-shadow: 0 1px 0 #ba6618; }
+        .btn-snapshot:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+        
+        .btn-snapshot.update-mode { background-color: #2980b9; box-shadow: 0 3px 0 #1c5e87; }
+        .btn-snapshot.update-mode:hover { background-color: #3498db; }
+
+        .btn-delete-kf {
+            width: 100%; padding: 8px; font-size: 12px; font-weight: bold;
+            background-color: var(--danger-color); color: white; border: none; border-radius: 5px; cursor: pointer;
+            margin-top: 5px; display: none;
+        }
+        .btn-delete-kf:hover { background-color: #e74c3c; }
+        .keyframe-clipboard-row {
+            display: flex;
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .keyframe-clipboard-row button {
+            flex: 1;
+            padding: 8px;
+            font-size: 12px;
+            font-weight: bold;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background: #3f4e5f;
+            color: white;
+        }
+        .keyframe-clipboard-row button:hover:not(:disabled) { background: #506579; }
+        .keyframe-clipboard-row button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .list-container { background: #1a1a1a; border: 1px solid var(--border-color); border-radius: 3px; overflow-y: auto;}
+        #object-list-container { height: 110px; }
+        #object-list { list-style:none; padding:0; margin:0; }
+        #object-list li { padding: 4px 8px; border-bottom: 1px solid #2a2a2a; cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
+        #object-list li:hover { background: #2a2a2a; }
+        #object-list li.active { background: rgba(0, 122, 204, 0.2); border-left: 3px solid var(--accent-color); color: white;}
+        .obj-name { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .layer-btn { font-size: 10px; background: #444; color: #ccc; padding: 3px 6px; border: none; border-radius: 3px; cursor: pointer; }
+        .layer-btn:hover { background: #555; color: white; }
+        .layer-btn.btn-danger:hover { background: var(--danger-color); }
+
+        /* --- 下半部：全域時間軸 --- */
+        #bottom-panel { 
+            height: 250px; background: var(--panel-color); border-top: 2px solid var(--border-color); 
+            display: flex; flex-direction: column;
+        }
+        
+        #timeline-toolbar {
+            padding: 6px 15px; background: #252526; border-bottom: 1px solid #1a1a1a;
+            display: flex; gap: 10px; align-items: center; position: relative;
+            flex-wrap: wrap;
+            row-gap: 6px;
+        }
+        .timeline-tool-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .timeline-zoom-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #bbb;
+            font-size: 11px;
+        }
+        #timeline-zoom-slider { width: 140px; }
+        #timeline-zoom-display {
+            min-width: 44px;
+            text-align: right;
+            font-family: monospace;
+            color: #ddd;
+        }
+        .btn-import { background: #5a5a5a; }
+        .btn-import:hover { background: #6e6e6e; }
+        .btn-export { background: var(--accent-color); }
+        .btn-export:hover { background: #1e8fd5; }
+        .snapshot-section { flex-grow: 1; background: rgba(230, 126, 34, 0.05); }
+        
+        button.action-btn { padding: 6px 12px; border: none; border-radius: 3px; cursor: pointer; font-weight: bold; color: white; font-size: 12px;}
+        button.action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-play { background-color: var(--success-color); color: #1e1e1e; }
+        .btn-play:not(:disabled):hover { background-color: #72e0c8; }
+        
+        #timeline-scroll-area {
+            flex-grow: 1; overflow-x: auto; overflow-y: auto; position: relative; background: var(--track-bg);
+            user-select: none;
+        }
+        #timeline-selection-box {
+            position: absolute;
+            border: 1px solid rgba(0, 122, 204, 0.9);
+            background: rgba(0, 122, 204, 0.18);
+            pointer-events: none;
+            display: none;
+            z-index: 18;
+        }
+
+        .track-row { 
+            display: flex; border-bottom: 1px solid #333; height: 34px; align-items: center; 
+            width: max-content; min-width: 100%; position: relative;
+        }
+        .track-row:hover { background: #222; }
+        .track-row.active-track { background: rgba(0, 122, 204, 0.1); }
+
+        .track-header { 
+            width: 160px; padding: 0 10px; box-sizing: border-box; 
+            border-right: 2px solid #111; background: var(--track-header-bg); 
+            position: sticky; left: 0; z-index: 10; 
+            font-weight: bold; color: #aaa; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            display: flex; align-items: center; height: 100%; cursor: pointer;
+        }
+        .track-row.active-track .track-header { color: white; border-left: 3px solid var(--accent-color); padding-left: 7px; background: #333;}
+        
+        .track-frames { position: relative; flex-grow: 1; height: 100%; min-width: 800px; }
+        
+        #ruler-row { background: #1a1a1a; border-bottom: 1px solid #555; height: 24px; position: sticky; top: 0; z-index: 15; cursor: ew-resize;}
+        #ruler-row .track-header { background: #1a1a1a; color: #777; font-size: 10px; border-right: 2px solid #111; cursor: default;}
+        .ruler-tick { 
+            position: absolute; border-left: 1px solid #555; height: 100%; padding-left: 4px; 
+            font-size: 10px; color: #888; display: flex; align-items: flex-end; padding-bottom: 2px;
+        }
+
+        .kf-node { 
+            position: absolute; top: 50%; width: 12px; height: 12px; margin-top: -6px; margin-left: -6px;
+            background: #888; transform: rotate(45deg); cursor: grab; transition: background 0.1s, box-shadow 0.1s;
+            box-shadow: 1px 1px 2px rgba(0,0,0,0.5); z-index: 5;
+        }
+        .kf-node:hover { background: #aaa; z-index: 6;}
+        .kf-node.selected { background: var(--record-color); box-shadow: 0 0 8px var(--record-color); z-index: 7;}
+        .kf-node.dragging { background: var(--success-color); box-shadow: 0 0 10px var(--success-color); cursor: grabbing; transform: rotate(45deg) scale(1.2); z-index: 20;}
+
+        /* 播放磁頭 (Playhead) */
+        #playhead {
+            position: absolute; top: 0; bottom: 0; width: 1px; background: var(--danger-color);
+            z-index: 20; display: none; pointer-events: none;
+        }
+        #playhead::before {
+            content: ''; position: absolute; top: 0; left: -4px; width: 9px; height: 9px;
+            background: var(--danger-color); border-radius: 50%;
+        }
+
+        #scrub-time-display {
+            position: absolute; top: 2px; right: 15px; color: var(--danger-color); font-weight: bold; font-family: monospace;
+            display: none;
+        }
+
+        /* --- 畫布縮放 --- */
+        #canvas-viewport {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            transform-origin: center center;
+        }
+        #zoom-controls {
+            position: absolute; bottom: 10px; right: 10px; z-index: 100;
+            display: flex; align-items: center; gap: 4px;
+            background: rgba(0,0,0,0.6); padding: 4px 8px; border-radius: 5px;
+            user-select: none;
+        }
+        .zoom-btn {
+            background: #555; color: white; border: none; border-radius: 3px;
+            width: 22px; height: 22px; cursor: pointer; font-size: 15px;
+            display: flex; align-items: center; justify-content: center; line-height: 1;
+        }
+        .zoom-btn:hover { background: #777; }
+        #zoom-display { font-size: 11px; color: #ddd; min-width: 38px; text-align: center; font-family: monospace; }
+
+    </style>
+</head>
+<body>
+
+    <div id="workspace">
+        <div id="canvas-container">
+            <div class="axis-h"></div>
+            <div class="axis-v"></div>
+            <div id="canvas-viewport"></div>
+            <div id="zoom-controls">
+                <button class="zoom-btn" onclick="zoomOut()" title="縮小 (滾輪↓)">−</button>
+                <span id="zoom-display">100%</span>
+                <button class="zoom-btn" onclick="zoomIn()" title="放大 (滾輪↑)">+</button>
+                <button class="zoom-btn" onclick="resetZoom()" title="重設縮放 (100%)">↺</button>
+            </div>
+        </div>
+
+        <div id="sidebar">
+            <div class="panel-section">
+                <h2>PIXEL ANIMATOR Pro</h2>
+                <h3>1. 圖層面板 (Layers)</h3>
+                <div class="btn-add-obj-wrapper">
+                    <span class="btn-add-obj">+ 新增圖片物件...</span>
+                    <input type="file" id="file-input" accept="image/*">
+                </div>
+                <div class="btn-add-obj-wrapper">
+                    <button class="btn-add-obj" type="button" onclick="importSpineBundle()">+ 匯入 Spine 資料夾...</button>
+                    <input type="file" id="spine-input" accept=".json,.atlas,.png,.jpg,.jpeg,.webp" webkitdirectory directory multiple>
+                </div>
+                <div id="object-list-container" class="list-container">
+                    <ul id="object-list"></ul>
+                </div>
+                <div id="spine-panel" style="display:none;">
+                    <div class="control-group">
+                        <label>Spine Animation:</label>
+                        <select id="spine-animation-select"></select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h3>2. 調整當前姿勢 (屬性編輯)</h3>
+                <div id="props-panel" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 3px; opacity: 0.5; pointer-events: none;">
+                    <div class="control-group"><label>X座標:</label><input type="number" id="prop-x" value="0"></div>
+                    <div class="control-group"><label>Y座標:</label><input type="number" id="prop-y" value="0"></div>
+                    <div class="control-group"><label>旋轉 (deg):</label><input type="number" id="prop-rot" value="0"></div>
+                    <div class="control-group"><label>縮放 (Scale):</label><input type="number" id="prop-scale" value="1" step="0.1"></div>
+                    <div class="control-group" style="grid-column: 1 / span 2;"><label>透明度 (Opacity):</label><input type="number" id="prop-opacity" value="1" step="0.1" max="1"></div>
+                </div>
+                <div id="tint-panel" style="margin-top: 6px; opacity: 0.5; pointer-events: none; display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                    <div class="control-group" style="grid-column: 1 / span 2;">
+                        <label>Tint:</label>
+                        <input type="color" id="prop-tint" value="#ffffff">
+                    </div>
+                    <div class="control-group">
+                        <label>Tint Strength:</label>
+                        <input type="number" id="prop-tint-strength" value="100" min="0" max="100" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>Hue:</label>
+                        <input type="number" id="prop-hue" value="0" min="-180" max="180" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>Brightness:</label>
+                        <input type="number" id="prop-brightness" value="100" min="0" max="300" step="1">
+                    </div>
+                    <div class="control-group">
+                        <label>Contrast:</label>
+                        <input type="number" id="prop-contrast" value="100" min="0" max="300" step="1">
+                    </div>
+                    <div class="control-group" style="grid-column: 1 / span 2;">
+                        <label>Blend Mode:</label>
+                        <select id="prop-blend-mode">
+                            <option value="normal">Normal</option>
+                            <option value="multiply">Multiply</option>
+                            <option value="screen">Screen</option>
+                            <option value="overlay">Overlay</option>
+                            <option value="darken">Darken</option>
+                            <option value="lighten">Lighten</option>
+                            <option value="color-dodge">Color Dodge</option>
+                            <option value="color-burn">Color Burn</option>
+                            <option value="hard-light">Hard Light</option>
+                            <option value="soft-light">Soft Light</option>
+                            <option value="difference">Difference</option>
+                            <option value="exclusion">Exclusion</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-section snapshot-section">
+                <h3>3. 影格快門 (Snapshot)</h3>
+                <div class="control-group">
+                    <label>與上一個影格的間隔 (秒):</label>
+                    <input type="number" id="prop-interval" value="0.5" step="0.1" min="0">
+                </div>
+                <button class="btn-snapshot" id="btn-snapshot" onclick="handleSnapshotAction()" disabled>📸 記錄為新影格</button>
+                <button class="btn-delete-kf" id="btn-delete-kf" onclick="deleteSelectedKeyframe()">🗑 刪除此影格</button>
+                
+                <div class="keyframe-clipboard-row">
+                    <button type="button" id="btn-copy-kf" onclick="copySelectedKeyframes()" disabled>Copy KF</button>
+                    <button type="button" id="btn-paste-kf" onclick="pasteCopiedKeyframes()" disabled>Paste KF</button>
+                </div>
+                <div id="update-hint" style="font-size:10px; color:#2980b9; text-align:center; display:none; margin-top:6px;">
+                    正在編輯現有影格... 按更新儲存，按畫布空白處取消
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="bottom-panel">
+        <div id="timeline-toolbar">
+            <div class="timeline-tool-group">
+                <button class="action-btn btn-play" id="btn-play" onclick="playAllObjects()" disabled>▶ 全域播放</button>
+                <button class="action-btn btn-danger" id="btn-stop" onclick="stopAnimation()" style="display:none;">⏹ 停止播放</button>
+            </div>
+            <div class="timeline-tool-group">
+                <button class="action-btn btn-import" id="btn-prev-kf" onclick="jumpToPreviousKeyframe()" disabled>⏮ 上一關鍵幀</button>
+                <button class="action-btn btn-import" id="btn-next-kf" onclick="jumpToNextKeyframe()" disabled>下一關鍵幀 ⏭</button>
+            </div>
+            
+            <div id="scrub-time-display">0.00s</div>
+            <span id="multi-select-display" style="display:none; color:#e67e22; font-size:11px; font-family:monospace;"></span>
+
+            <div style="flex-grow: 1;"></div>
+            <div class="timeline-zoom-controls" title="Ctrl/Cmd + 滾輪也可以縮放時間軸">
+                <span>Timeline Zoom</span>
+                <input type="range" id="timeline-zoom-slider" min="25" max="400" step="5" value="100">
+                <span id="timeline-zoom-display">100%</span>
+            </div>
+            <input type="file" id="json-import-input" accept=".json" style="display:none;">
+            <button class="action-btn btn-import" onclick="importProjectJSON()">📂 匯入 JSON</button>
+            <button class="action-btn btn-export" onclick="exportProjectJSON()">💾 匯出 JSON</button>
+        </div>
+        
+        <div id="timeline-scroll-area">
+            <div id="ruler-row" class="track-row">
+                <div class="track-header">時間標尺 (可拖拉)</div>
+                <div class="track-frames" id="ruler-ticks"></div>
+            </div>
+            <div id="tracks-container"></div>
+            <div id="timeline-selection-box"></div>
+            <div id="playhead"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- 核心資料結構 ---
+        let animObjects = []; 
+        let selectedObjectId = null; 
+        let selectedKeyframeIndex = null; 
+        let playState = { isPlaying: false, startTime: 0, animationFrameId: null, totalDuration: 0, currentTime: 0 };
+        let keyframeClipboard = null;
+
+        let selectedKeyframes = []; // [{ objId, kfIndex }] — 複選影格
+        let kfDrag = { isDragging: false, hasMoved: false, objId: null, kfIndex: null, startX: 0, startTime: 0, nodeEl: null, dragTargets: [] };
+        let marqueeState = { isSelecting: false, hasMoved: false, additive: false, startX: 0, startY: 0, currentX: 0, currentY: 0, baseSelection: [] };
+        let scrubState = { isScrubbing: false };
+        let drag = { isDragging: false, sx: 0, sy: 0, objX: 0, objY: 0 };
+        let canvasZoom = 1.0;
+
+        const ZOOM_MIN = 0.1;
+        const ZOOM_MAX = 5.0;
+        const ZOOM_STEP = 1.25;
+        const DEFAULT_TINT = '#ffffff';
+        const DEFAULT_TINT_STRENGTH = 100;
+        const DEFAULT_HUE = 0;
+        const DEFAULT_BRIGHTNESS = 100;
+        const DEFAULT_CONTRAST = 100;
+        const DEFAULT_BLEND_MODE = 'normal';
+        const DEFAULT_POSE = {
+            x: 0, y: 0, rot: 0, scale: 1, opacity: 1,
+            tint: DEFAULT_TINT, tintStrength: DEFAULT_TINT_STRENGTH,
+            hue: DEFAULT_HUE, brightness: DEFAULT_BRIGHTNESS, contrast: DEFAULT_CONTRAST,
+            blendMode: DEFAULT_BLEND_MODE
+        };
+        const DEFAULT_SPINE_SIZE = 320;
+        const IMAGE_TYPE = 'image';
+        const SPINE_TYPE = 'spine';
+        const spineRuntimeState = { loadedVersion: null, loadingVersion: null, promise: null };
+        const SVG_NS = 'http://www.w3.org/2000/svg';
+
+        const BASE_PIXELS_PER_SEC = 150;
+        const TIMELINE_ZOOM_MIN = 0.25;
+        const TIMELINE_ZOOM_MAX = 4;
+        let timelineZoom = 1;
+        const HEADER_WIDTH = 160;
+
+        const canvas = document.getElementById('canvas-container');
+        const canvasViewport = document.getElementById('canvas-viewport');
+        const zoomDisplay = document.getElementById('zoom-display');
+        const fileInput = document.getElementById('file-input');
+        const spineInput = document.getElementById('spine-input');
+        const objectListEl = document.getElementById('object-list');
+        const propsPanel = document.getElementById('props-panel');
+        const tintPanel = document.getElementById('tint-panel');
+        const spinePanel = document.getElementById('spine-panel');
+        const spineAnimationSelect = document.getElementById('spine-animation-select');
+        const btnSnapshot = document.getElementById('btn-snapshot');
+        const btnDeleteKf = document.getElementById('btn-delete-kf'); 
+        const btnCopyKf = document.getElementById('btn-copy-kf');
+        const btnPasteKf = document.getElementById('btn-paste-kf');
+        const updateHint = document.getElementById('update-hint');
+        const btnPlay = document.getElementById('btn-play');
+        const btnStop = document.getElementById('btn-stop');
+        const btnPrevKf = document.getElementById('btn-prev-kf');
+        const btnNextKf = document.getElementById('btn-next-kf');
+        const intervalInput = document.getElementById('prop-interval');
+        const tracksContainer = document.getElementById('tracks-container');
+        const timelineScrollArea = document.getElementById('timeline-scroll-area');
+        const timelineSelectionBox = document.getElementById('timeline-selection-box');
+        const rulerRow = document.getElementById('ruler-row'); 
+        const rulerTicks = document.getElementById('ruler-ticks');
+        const playhead = document.getElementById('playhead');
+        const scrubTimeDisplay = document.getElementById('scrub-time-display');
+        const multiSelectDisplay = document.getElementById('multi-select-display');
+        const timelineZoomSlider = document.getElementById('timeline-zoom-slider');
+        const timelineZoomDisplay = document.getElementById('timeline-zoom-display');
+
+        const inputs = {
+            x: document.getElementById('prop-x'), y: document.getElementById('prop-y'),
+            rot: document.getElementById('prop-rot'), scale: document.getElementById('prop-scale'),
+            opacity: document.getElementById('prop-opacity'),
+            tint: document.getElementById('prop-tint'),
+            tintStrength: document.getElementById('prop-tint-strength'),
+            hue: document.getElementById('prop-hue'),
+            brightness: document.getElementById('prop-brightness'),
+            contrast: document.getElementById('prop-contrast'),
+            blendMode: document.getElementById('prop-blend-mode')
+        };
+
+        const escapeHTML = (str) => str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+        const getNum = (val, defaultVal) => isNaN(parseFloat(val)) ? defaultVal : parseFloat(val);
+        const normalizeTintHex = (tint) => {
+            const value = String(tint || DEFAULT_TINT).trim();
+            if (/^#[0-9a-f]{6}$/i.test(value)) return value.toLowerCase();
+            if (/^#[0-9a-f]{3}$/i.test(value)) {
+                return `#${value[1]}${value[1]}${value[2]}${value[2]}${value[3]}${value[3]}`.toLowerCase();
+            }
+            return DEFAULT_TINT;
+        };
+        const hexToRgb = (hex) => {
+            const value = normalizeTintHex(hex);
+            return {
+                r: parseInt(value.slice(1, 3), 16),
+                g: parseInt(value.slice(3, 5), 16),
+                b: parseInt(value.slice(5, 7), 16)
+            };
+        };
+        const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+        const rgbToHex = ({ r, g, b }) => `#${[r, g, b].map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('')}`;
+        const BLEND_MODE_OPTIONS = new Set([
+            'normal', 'multiply', 'screen', 'overlay', 'darken', 'lighten',
+            'color-dodge', 'color-burn', 'hard-light', 'soft-light',
+            'difference', 'exclusion'
+        ]);
+        const normalizeBlendMode = (blendMode) => {
+            const value = String(blendMode || DEFAULT_BLEND_MODE).trim().toLowerCase();
+            return BLEND_MODE_OPTIONS.has(value) ? value : DEFAULT_BLEND_MODE;
+        };
+        const lerpTint = (startTint, endTint, t) => {
+            const start = hexToRgb(startTint);
+            const end = hexToRgb(endTint);
+            return rgbToHex({
+                r: lerp(start.r, end.r, t),
+                g: lerp(start.g, end.g, t),
+                b: lerp(start.b, end.b, t)
+            });
+        };
+        const normalizePoseEffects = (pose = DEFAULT_POSE) => ({
+            tint: normalizeTintHex(pose.tint || DEFAULT_TINT),
+            tintStrength: clamp(getNum(pose.tintStrength, DEFAULT_TINT_STRENGTH), 0, 100),
+            hue: clamp(getNum(pose.hue, DEFAULT_HUE), -180, 180),
+            brightness: clamp(getNum(pose.brightness, DEFAULT_BRIGHTNESS), 0, 300),
+            contrast: clamp(getNum(pose.contrast, DEFAULT_CONTRAST), 0, 300),
+            blendMode: normalizeBlendMode(pose.blendMode)
+        });
+        const getInputPoseValues = () => ({
+            x: getNum(inputs.x.value, 0),
+            y: getNum(inputs.y.value, 0),
+            rot: getNum(inputs.rot.value, 0),
+            scale: getNum(inputs.scale.value, 1),
+            opacity: getNum(inputs.opacity.value, 1),
+            ...normalizePoseEffects({
+                tint: inputs.tint.value,
+                tintStrength: inputs.tintStrength.value,
+                hue: inputs.hue.value,
+                brightness: inputs.brightness.value,
+                contrast: inputs.contrast.value,
+                blendMode: inputs.blendMode.value
+            })
+        });
+        const getSelectedObjectData = () => animObjects.find(obj => obj.id === selectedObjectId);
+        const clonePose = (pose = DEFAULT_POSE) => ({
+            x: pose.x, y: pose.y, rot: pose.rot, scale: pose.scale, opacity: pose.opacity,
+            ...normalizePoseEffects(pose)
+        });
+        const normalizeKeyframe = (kf) => ({ ...clonePose(kf || DEFAULT_POSE), time: getNum(kf?.time, 0) });
+        const normalizePath = (path) => String(path || '').replace(/\\/g, '/');
+        const stripExtension = (name) => String(name || '').replace(/\.[^.]+$/, '');
+        const stripDataUrlPrefix = (dataUrl) => {
+            const parts = String(dataUrl || '').split(',', 2);
+            return parts.length === 2 ? parts[1] : '';
+        };
+        const createObjectId = () => Date.now() + Math.floor(Math.random() * 1000000);
+        const readFileAsText = (file) => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(reader.error || new Error(`讀取 ${file.name} 失敗`));
+            reader.readAsText(file);
+        });
+        const readFileAsDataURL = (file) => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(reader.error || new Error(`讀取 ${file.name} 失敗`));
+            reader.readAsDataURL(file);
+        });
+
+        // --- 縮放功能 ---
+        const tintFilterSvg = document.createElementNS(SVG_NS, 'svg');
+        tintFilterSvg.setAttribute('width', '0');
+        tintFilterSvg.setAttribute('height', '0');
+        tintFilterSvg.style.position = 'absolute';
+        tintFilterSvg.style.pointerEvents = 'none';
+        tintFilterSvg.style.opacity = '0';
+        const tintFilterDefs = document.createElementNS(SVG_NS, 'defs');
+        tintFilterSvg.appendChild(tintFilterDefs);
+        document.body.appendChild(tintFilterSvg);
+
+        function getSpineRuntimeVersion(editorVersion) {
+            const match = String(editorVersion || '').match(/^(\d+\.\d+)/);
+            return match ? match[1] : '4.2';
+        }
+
+        function ensureSpineRuntime(editorVersion) {
+            const runtimeVersion = getSpineRuntimeVersion(editorVersion);
+            if (window.customElements?.get('spine-skeleton') && spineRuntimeState.loadedVersion === runtimeVersion) {
+                return Promise.resolve(runtimeVersion);
+            }
+            if (spineRuntimeState.promise && spineRuntimeState.loadingVersion === runtimeVersion) {
+                return spineRuntimeState.promise;
+            }
+            if (spineRuntimeState.loadedVersion && spineRuntimeState.loadedVersion !== runtimeVersion) {
+                /*
+                return Promise.reject(new Error(`目前頁面已載入 Spine ${spineRuntimeState.loadedVersion} runtime，無法混用 ${runtimeVersion} 匯出版本。`));
+                */
+                return Promise.reject(new Error(`Spine runtime ${spineRuntimeState.loadedVersion} is already loaded. Mixed runtime version ${runtimeVersion} is not supported in the same page.`));
+            }
+
+            spineRuntimeState.loadingVersion = runtimeVersion;
+            spineRuntimeState.promise = new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = `https://unpkg.com/@esotericsoftware/spine-webcomponents@${runtimeVersion}.*/dist/iife/spine-webcomponents.min.js`;
+                script.onload = () => {
+                    spineRuntimeState.loadedVersion = runtimeVersion;
+                    resolve(runtimeVersion);
+                };
+                script.onerror = () => {
+                    spineRuntimeState.promise = null;
+                    spineRuntimeState.loadingVersion = null;
+                    /*
+                    reject(new Error(`Spine ${runtimeVersion} runtime 載入失敗，請確認網路連線與 skeleton 版本相符。`));
+                    */
+                    reject(new Error(`Failed to load Spine runtime ${runtimeVersion}. Check your network connection and make sure the skeleton export version matches.`));
+                };
+                document.head.appendChild(script);
+            });
+
+            return spineRuntimeState.promise;
+        }
+
+        function createObjectWrapper(objId, className = '') {
+            const wrapper = document.createElement('div');
+            wrapper.className = `anim-object-wrapper${className ? ` ${className}` : ''}`;
+            wrapper.id = `obj-wrap-${objId}`;
+            wrapper.dataset.objId = objId;
+            wrapper.dataset.tintFilterId = `tint-filter-${objId}`;
+
+            const filter = document.createElementNS(SVG_NS, 'filter');
+            filter.setAttribute('id', wrapper.dataset.tintFilterId);
+            filter.setAttribute('color-interpolation-filters', 'sRGB');
+            const flood = document.createElementNS(SVG_NS, 'feFlood');
+            flood.setAttribute('flood-color', DEFAULT_TINT);
+            flood.setAttribute('flood-opacity', '1');
+            flood.setAttribute('result', 'tint');
+            const composite = document.createElementNS(SVG_NS, 'feComposite');
+            composite.setAttribute('in', 'tint');
+            composite.setAttribute('in2', 'SourceAlpha');
+            composite.setAttribute('operator', 'in');
+            composite.setAttribute('result', 'tintMask');
+            const blend = document.createElementNS(SVG_NS, 'feBlend');
+            blend.setAttribute('in', 'SourceGraphic');
+            blend.setAttribute('in2', 'tintMask');
+            blend.setAttribute('mode', 'multiply');
+            filter.appendChild(flood);
+            filter.appendChild(composite);
+            filter.appendChild(blend);
+            tintFilterDefs.appendChild(filter);
+            wrapper.tintFloodNode = flood;
+            wrapper.tintFilterNode = filter;
+
+            const contentLayer = document.createElement('div');
+            contentLayer.className = 'anim-object-content';
+            const tintOverlay = document.createElement('div');
+            tintOverlay.className = 'anim-object-tint';
+            wrapper.appendChild(contentLayer);
+            wrapper.appendChild(tintOverlay);
+            wrapper.contentLayer = contentLayer;
+            wrapper.tintOverlay = tintOverlay;
+
+            wrapper.addEventListener('mousedown', onObjectMouseDown);
+            wrapper.addEventListener('click', (e) => { e.stopPropagation(); selectObject(objId); });
+            return wrapper;
+        }
+
+        function finalizeNewObject(newObj) {
+            animObjects.push(newObj);
+            updateZIndices();
+            updateUIState();
+            selectObject(newObj.id);
+            btnPlay.disabled = false;
+            return newObj;
+        }
+
+        function getSpineRuntimeVersion(editorVersion) {
+            const match = String(editorVersion || '').match(/^(\d+\.\d+)/);
+            return match ? match[1] : '4.2';
+        }
+
+        function ensureSpineRuntime(editorVersion) {
+            const runtimeVersion = getSpineRuntimeVersion(editorVersion);
+            if (window.customElements?.get('spine-skeleton') && spineRuntimeState.loadedVersion === runtimeVersion) {
+                return Promise.resolve(runtimeVersion);
+            }
+            if (spineRuntimeState.promise && spineRuntimeState.loadingVersion === runtimeVersion) {
+                return spineRuntimeState.promise;
+            }
+            if (spineRuntimeState.loadedVersion && spineRuntimeState.loadedVersion !== runtimeVersion) {
+                return Promise.reject(new Error(`Spine runtime ${spineRuntimeState.loadedVersion} is already loaded. Mixed runtime version ${runtimeVersion} is not supported in the same page.`));
+            }
+
+            spineRuntimeState.loadingVersion = runtimeVersion;
+            spineRuntimeState.promise = new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = `https://unpkg.com/@esotericsoftware/spine-webcomponents@${runtimeVersion}.*/dist/iife/spine-webcomponents.min.js`;
+                script.onload = () => {
+                    spineRuntimeState.loadedVersion = runtimeVersion;
+                    resolve(runtimeVersion);
+                };
+                script.onerror = () => {
+                    spineRuntimeState.promise = null;
+                    spineRuntimeState.loadingVersion = null;
+                    reject(new Error(`Failed to load Spine runtime ${runtimeVersion}. Check your network connection and make sure the skeleton export version matches.`));
+                };
+                document.head.appendChild(script);
+            });
+
+            return spineRuntimeState.promise;
+        }
+
+        function createObjectWrapper(objId, className = '') {
+            const wrapper = document.createElement('div');
+            wrapper.className = `anim-object-wrapper${className ? ` ${className}` : ''}`;
+            wrapper.id = `obj-wrap-${objId}`;
+            wrapper.dataset.objId = objId;
+            wrapper.dataset.tintFilterId = `tint-filter-${objId}`;
+
+            const filter = document.createElementNS(SVG_NS, 'filter');
+            filter.setAttribute('id', wrapper.dataset.tintFilterId);
+            filter.setAttribute('color-interpolation-filters', 'sRGB');
+            const flood = document.createElementNS(SVG_NS, 'feFlood');
+            flood.setAttribute('flood-color', DEFAULT_TINT);
+            flood.setAttribute('flood-opacity', '1');
+            flood.setAttribute('result', 'tint');
+            const composite = document.createElementNS(SVG_NS, 'feComposite');
+            composite.setAttribute('in', 'tint');
+            composite.setAttribute('in2', 'SourceAlpha');
+            composite.setAttribute('operator', 'in');
+            composite.setAttribute('result', 'tintMask');
+            const blend = document.createElementNS(SVG_NS, 'feBlend');
+            blend.setAttribute('in', 'SourceGraphic');
+            blend.setAttribute('in2', 'tintMask');
+            blend.setAttribute('mode', 'multiply');
+            filter.appendChild(flood);
+            filter.appendChild(composite);
+            filter.appendChild(blend);
+            tintFilterDefs.appendChild(filter);
+            wrapper.tintFloodNode = flood;
+            wrapper.tintFilterNode = filter;
+
+            const contentLayer = document.createElement('div');
+            contentLayer.className = 'anim-object-content';
+            const tintOverlay = document.createElement('div');
+            tintOverlay.className = 'anim-object-tint';
+            wrapper.appendChild(contentLayer);
+            wrapper.appendChild(tintOverlay);
+            wrapper.contentLayer = contentLayer;
+            wrapper.tintOverlay = tintOverlay;
+
+            wrapper.addEventListener('mousedown', onObjectMouseDown);
+            wrapper.addEventListener('click', (e) => { e.stopPropagation(); selectObject(objId); });
+            return wrapper;
+        }
+
+        function finalizeNewObject(newObj) {
+            animObjects.push(newObj);
+            updateZIndices();
+            updateUIState();
+            selectObject(newObj.id);
+            btnPlay.disabled = false;
+            return newObj;
+        }
+
+        function setZoom(level) {
+            canvasZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, level));
+            canvasViewport.style.transform = `scale(${canvasZoom})`;
+            zoomDisplay.innerText = `${Math.round(canvasZoom * 100)}%`;
+        }
+        function zoomIn()    { setZoom(canvasZoom * ZOOM_STEP); }
+        function zoomOut()   { setZoom(canvasZoom / ZOOM_STEP); }
+        function resetZoom() { setZoom(1.0); }
+
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            if (e.deltaY < 0) zoomIn(); else zoomOut();
+        }, { passive: false });
+
+        function getTimelinePixelsPerSecond() {
+            return BASE_PIXELS_PER_SEC * timelineZoom;
+        }
+
+        function timeToTimelineX(time) {
+            return time * getTimelinePixelsPerSecond();
+        }
+
+        function timelineXToTime(x) {
+            return x / getTimelinePixelsPerSecond();
+        }
+
+        function updatePlayheadPosition() {
+            playhead.style.left = `${HEADER_WIDTH + timeToTimelineX(playState.currentTime)}px`;
+        }
+
+        function updateTimelineZoomUI() {
+            const zoomPercent = Math.round(timelineZoom * 100);
+            timelineZoomSlider.value = String(zoomPercent);
+            timelineZoomDisplay.innerText = `${zoomPercent}%`;
+        }
+
+        function setTimelineZoom(level, anchorTime = null) {
+            const previousPixelsPerSecond = getTimelinePixelsPerSecond();
+            const clampedLevel = clamp(level, TIMELINE_ZOOM_MIN, TIMELINE_ZOOM_MAX);
+            const resolvedAnchorTime = anchorTime !== null
+                ? Math.max(0, anchorTime)
+                : Math.max(0, (timelineScrollArea.scrollLeft + (timelineScrollArea.clientWidth / 2) - HEADER_WIDTH) / previousPixelsPerSecond);
+
+            timelineZoom = clampedLevel;
+            updateTimelineZoomUI();
+            updateGlobalTimeline();
+
+            timelineScrollArea.scrollLeft = Math.max(
+                0,
+                HEADER_WIDTH + timeToTimelineX(resolvedAnchorTime) - (timelineScrollArea.clientWidth / 2)
+            );
+            if (playhead.style.display !== 'none') updatePlayheadPosition();
+        }
+
+        function adjustTimelineZoom(multiplier, anchorTime = null) {
+            setTimelineZoom(timelineZoom * multiplier, anchorTime);
+        }
+
+        function centerTimelineOnTime(time) {
+            timelineScrollArea.scrollLeft = Math.max(
+                0,
+                HEADER_WIDTH + timeToTimelineX(time) - (timelineScrollArea.clientWidth / 2)
+            );
+        }
+
+        function getJumpKeyframeTargets() {
+            const selectedObj = getSelectedObjectData();
+            if (selectedObj && selectedObj.keyframes.length > 0) {
+                return selectedObj.keyframes.map((kf, kfIndex) => ({
+                    objId: selectedObj.id,
+                    kfIndex,
+                    time: kf.time
+                }));
+            }
+            return animObjects.flatMap(obj => obj.keyframes.map((kf, kfIndex) => ({
+                objId: obj.id,
+                kfIndex,
+                time: kf.time
+            })));
+        }
+
+        function updateTimelineNavigationButtons() {
+            const hasAnyKeyframes = getJumpKeyframeTargets().length > 0;
+            btnPrevKf.disabled = !hasAnyKeyframes;
+            btnNextKf.disabled = !hasAnyKeyframes;
+        }
+
+        function jumpToAdjacentKeyframe(direction) {
+            const targets = getJumpKeyframeTargets()
+                .map(target => ({ ...target, time: Math.round(target.time * 1000) / 1000 }))
+                .sort((a, b) => a.time - b.time || a.objId - b.objId || a.kfIndex - b.kfIndex);
+            if (targets.length === 0) return;
+            if (playState.isPlaying) stopAnimation();
+
+            const epsilon = 0.0001;
+            let target = null;
+            if (direction > 0) {
+                target = targets.find(item => item.time > playState.currentTime + epsilon);
+                if (target === undefined) target = targets[targets.length - 1];
+            } else {
+                const previousTargets = targets.filter(item => item.time < playState.currentTime - epsilon);
+                target = previousTargets.length > 0 ? previousTargets[previousTargets.length - 1] : targets[0];
+            }
+
+            if (!target) return;
+            if (selectedObjectId !== target.objId) selectObject(target.objId);
+            selectedKeyframes = [{ objId: target.objId, kfIndex: target.kfIndex }];
+            updateMultiSelectUI();
+            enterEditingFrameMode(target.kfIndex);
+        }
+
+        function jumpToPreviousKeyframe() {
+            jumpToAdjacentKeyframe(-1);
+        }
+
+        function jumpToNextKeyframe() {
+            jumpToAdjacentKeyframe(1);
+        }
+
+        timelineZoomSlider.addEventListener('input', (e) => {
+            setTimelineZoom(getNum(e.target.value, 100) / 100);
+        });
+        updateTimelineZoomUI();
+
+        function handleTimelineWheel(e) {
+            if (!e.target.closest('#timeline-scroll-area')) return;
+
+            e.preventDefault();
+
+            if (e.ctrlKey || e.metaKey) {
+                const rect = timelineScrollArea.getBoundingClientRect();
+                const anchorX = e.clientX - rect.left + timelineScrollArea.scrollLeft - HEADER_WIDTH;
+                const anchorTime = Math.max(0, timelineXToTime(Math.max(0, anchorX)));
+                adjustTimelineZoom(e.deltaY < 0 ? 1.1 : (1 / 1.1), anchorTime);
+                return;
+            }
+
+            if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+                timelineScrollArea.scrollLeft += e.deltaX || e.deltaY;
+                return;
+            }
+
+            timelineScrollArea.scrollTop += e.deltaY || e.deltaX;
+        }
+
+        document.addEventListener('wheel', handleTimelineWheel, { passive: false, capture: true });
+
+        canvas.addEventListener('click', (e) => {
+            if (e.target === canvas || e.target === canvasViewport) {
+                if (selectedKeyframeIndex !== null || selectedKeyframes.length > 0) {
+                    selectedKeyframes = [];
+                    updateMultiSelectUI();
+                    exitEditingFrameMode();
+                } else if (selectedObjectId !== null) {
+                    selectObject(null);
+                }
+            }
+        });
+
+        Object.keys(inputs).forEach(key => {
+            inputs[key].addEventListener('input', () => {
+                const targetObj = getSelectedObjectData();
+                if (targetObj) {
+                    const tempPose = getInputPoseValues();
+                    targetObj.currentPose = { ...tempPose };
+                    applyPoseToDOM(targetObj.domWrapper, tempPose);
+                }
+            });
+        });
+
+        // --- 物件與圖層管理 ---
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => { addNewObject(file.name, ev.target.result); fileInput.value = ''; };
+            reader.readAsDataURL(file);
+        });
+
+        function addNewObject(name, base64Src) {
+            const objId = createObjectId();
+            const wrapper = createObjectWrapper(objId);
+            const img = document.createElement('img');
+            img.src = base64Src;
+            (wrapper.contentLayer || wrapper).appendChild(img);
+            canvasViewport.appendChild(wrapper);
+
+            applyPoseToDOM(wrapper, DEFAULT_POSE);
+
+            const newObj = {
+                id: objId,
+                type: IMAGE_TYPE,
+                name: name,
+                src: base64Src,
+                domWrapper: wrapper,
+                currentPose: clonePose(),
+                keyframes: []
+            };
+            
+            return finalizeNewObject(newObj);
+        }
+
+        function importSpineBundle() {
+            spineInput.click();
+        }
+
+        async function buildSpineObjectData(files) {
+            const atlasFile = files.find(file => file.name.toLowerCase().endsWith('.atlas'));
+            const textureFiles = files.filter(file => /\.(png|jpg|jpeg|webp)$/i.test(file.name));
+            const jsonFiles = files.filter(file => file.name.toLowerCase().endsWith('.json'));
+            /*
+
+            if (!atlasFile) throw new Error('Spine 匯入至少需要 1 個 .atlas 檔。');
+            if (textureFiles.length === 0) throw new Error('Spine 匯入至少需要 atlas 對應的貼圖檔。');
+            if (jsonFiles.length === 0) throw new Error('目前先支援 Spine skeleton JSON，請提供 .json skeleton 檔。');
+
+            */
+            if (!atlasFile) throw new Error('Spine import requires at least one .atlas file.');
+            if (textureFiles.length === 0) throw new Error('Spine import requires the atlas texture images.');
+            if (jsonFiles.length === 0) throw new Error('This editor currently supports Spine skeleton JSON (.json) files only.');
+
+            let skeletonFile = null;
+            let skeletonData = null;
+            for (const candidate of jsonFiles) {
+                try {
+                    const parsed = JSON.parse(await readFileAsText(candidate));
+                    if (parsed?.skeleton && (parsed.bones || parsed.animations || parsed.skins)) {
+                        skeletonFile = candidate;
+                        skeletonData = parsed;
+                        break;
+                    }
+                } catch (err) {
+                }
+            }
+
+            if (!skeletonFile || !skeletonData) {
+                /*
+                throw new Error('找不到有效的 Spine skeleton JSON。');
+            }
+
+                */
+                throw new Error('Could not find a valid Spine skeleton JSON file.');
+            }
+
+            const editorVersion = skeletonData?.skeleton?.spine || '';
+            await ensureSpineRuntime(editorVersion);
+
+            const rawData = {};
+            for (const file of files) {
+                const assetPath = normalizePath(file.webkitRelativePath || file.name);
+                const base64 = stripDataUrlPrefix(await readFileAsDataURL(file));
+                rawData[assetPath] = base64;
+                if (!rawData[file.name]) rawData[file.name] = base64;
+            }
+
+            const animationNames = Object.keys(skeletonData.animations || {});
+            return {
+                name: stripExtension(skeletonFile.name),
+                editorVersion,
+                skeletonPath: normalizePath(skeletonFile.webkitRelativePath || skeletonFile.name),
+                atlasPath: normalizePath(atlasFile.webkitRelativePath || atlasFile.name),
+                rawData,
+                animationName: animationNames[0] || '',
+                animationNames,
+                animationDuration: 3,
+                size: { width: DEFAULT_SPINE_SIZE, height: DEFAULT_SPINE_SIZE }
+            };
+        }
+
+        function syncSpineElementConfig(obj) {
+            if (!obj?.spineElement) return;
+            obj.spineElement.setAttribute('skeleton', obj.spineData.skeletonPath);
+            obj.spineElement.setAttribute('atlas', obj.spineData.atlasPath);
+            obj.spineElement.setAttribute('raw-data', JSON.stringify(obj.spineData.rawData));
+            obj.spineElement.setAttribute('default-mix', '0');
+            if (obj.spineData.animationName) obj.spineElement.setAttribute('animation', obj.spineData.animationName);
+            else obj.spineElement.removeAttribute('animation');
+        }
+
+        function getSpinePreviewTime(obj) {
+            if (playState.isPlaying || scrubState.isScrubbing) return playState.currentTime;
+            const startedAt = obj.spineState?.previewStartedAt || performance.now();
+            return Math.max(0, (performance.now() - startedAt) / 1000);
+        }
+
+        function syncSpineState(obj, skeleton, state) {
+            const animationName = obj.spineData?.animationName || '';
+            if (!animationName) {
+                state.clearTracks?.();
+                skeleton.setupPose?.();
+                return;
+            }
+
+            let entry = state.tracks?.[0] || null;
+            const currentAnimation = entry?.animation?.name || '';
+            if (!entry || currentAnimation !== animationName) {
+                state.clearTrack?.(0);
+                entry = state.setAnimation(0, animationName, true);
+                if (entry) {
+                    entry.mixDuration = 0;
+                    obj.spineData.animationDuration = entry.animation?.duration || obj.spineData.animationDuration || 3;
+                }
+            }
+
+            if (entry) {
+                const duration = entry.animation?.duration || obj.spineData.animationDuration || 0;
+                const nextTime = getSpinePreviewTime(obj);
+                entry.trackTime = duration > 0 ? (nextTime % duration) : nextTime;
+                entry.animationLast = entry.trackTime;
+                if ('mixTime' in entry && 'mixDuration' in entry) entry.mixTime = entry.mixDuration;
+            }
+        }
+
+        async function addSpineObject(spineData, keyframes = []) {
+            await ensureSpineRuntime(spineData.editorVersion);
+
+            const objId = createObjectId();
+            const wrapper = createObjectWrapper(objId, 'spine-object');
+            wrapper.style.width = `${spineData.size?.width || DEFAULT_SPINE_SIZE}px`;
+            wrapper.style.height = `${spineData.size?.height || DEFAULT_SPINE_SIZE}px`;
+
+            const spineElement = document.createElement('spine-skeleton');
+            spineElement.setAttribute('identifier', `spine-object-${objId}`);
+            spineElement.style.width = '100%';
+            spineElement.style.height = '100%';
+            (wrapper.contentLayer || wrapper).appendChild(spineElement);
+            canvasViewport.appendChild(wrapper);
+
+            applyPoseToDOM(wrapper, DEFAULT_POSE);
+
+            const newObj = {
+                id: objId,
+                type: SPINE_TYPE,
+                name: spineData.name || 'Spine Object',
+                domWrapper: wrapper,
+                currentPose: clonePose(),
+                keyframes: keyframes.map(normalizeKeyframe),
+                spineData: {
+                    name: spineData.name || 'Spine Object',
+                    editorVersion: spineData.editorVersion,
+                    skeletonPath: spineData.skeletonPath,
+                    atlasPath: spineData.atlasPath,
+                    rawData: { ...(spineData.rawData || {}) },
+                    animationName: spineData.animationName || '',
+                    animationNames: [...(spineData.animationNames || [])],
+                    animationDuration: spineData.animationDuration || 3,
+                    size: { width: spineData.size?.width || DEFAULT_SPINE_SIZE, height: spineData.size?.height || DEFAULT_SPINE_SIZE }
+                },
+                spineElement,
+                spineState: { previewStartedAt: performance.now() }
+            };
+
+            syncSpineElementConfig(newObj);
+            spineElement.whenReady.then(({ skeleton, state }) => {
+                spineElement.update = (delta, currentSkeleton, currentState) => {
+                    syncSpineState(newObj, currentSkeleton, currentState);
+                    currentState.apply(currentSkeleton);
+                    currentSkeleton.updateWorldTransform();
+                };
+                syncSpineState(newObj, skeleton, state);
+            }).catch((err) => {
+                console.error(err);
+                /*
+                alert(`Spine 物件 ${newObj.name} 載入失敗：${err.message}`);
+                */
+                alert(`Spine object ${newObj.name} failed to load: ${err.message}`);
+            });
+
+            return finalizeNewObject(newObj);
+        }
+
+        function updateZIndices() { animObjects.forEach((obj, i) => obj.domWrapper.style.zIndex = i + 2); }
+        function moveLayer(objId, direction) {
+            const index = animObjects.findIndex(obj => obj.id === objId);
+            if (index < 0) return;
+            const newIndex = index + direction;
+            if (newIndex < 0 || newIndex >= animObjects.length) return; 
+            [animObjects[index], animObjects[newIndex]] = [animObjects[newIndex], animObjects[index]];
+            updateZIndices(); updateUIState();
+        }
+
+        function deleteObject(objId) {
+            if (!confirm('Delete this object?')) return;
+            /*
+            if (!confirm("確定要刪除嗎？")) return;
+            */
+            const targetObj = animObjects.find(obj => obj.id === objId);
+            targetObj?.spineElement?.dispose?.();
+            targetObj?.domWrapper?.tintFilterNode?.remove?.();
+            animObjects = animObjects.filter(obj => obj.id !== objId);
+            document.getElementById(`obj-wrap-${objId}`)?.remove();
+            if (selectedObjectId === objId) selectedObjectId = null;
+            updateZIndices(); updateUIState();
+            if (animObjects.length === 0) btnPlay.disabled = true;
+        }
+
+        function selectObject(objId) {
+            if (playState.isPlaying) stopAnimation();
+            selectedObjectId = objId;
+            selectedKeyframeIndex = null;
+            selectedKeyframes = [];
+            updateMultiSelectUI();
+            
+            document.querySelectorAll('.anim-object-wrapper').forEach(el => el.classList.remove('selected'));
+            if (objId !== null) {
+                document.getElementById(`obj-wrap-${objId}`)?.classList.add('selected');
+                const obj = getSelectedObjectData();
+                if (obj) { syncInputsWithState(obj.currentPose); intervalInput.value = 0.5; }
+            }
+            updateUIState();
+        }
+
+        function updateSpinePanel(obj) {
+            if (!obj || obj.type !== SPINE_TYPE) {
+                spinePanel.style.display = 'none';
+                spineAnimationSelect.innerHTML = '';
+                return;
+            }
+
+            spinePanel.style.display = 'block';
+            const animationNames = obj.spineData?.animationNames || [];
+            if (animationNames.length === 0) {
+                spineAnimationSelect.disabled = true;
+                spineAnimationSelect.innerHTML = '<option value="">Setup Pose</option>';
+                spineAnimationSelect.value = '';
+                return;
+            }
+
+            spineAnimationSelect.disabled = false;
+            spineAnimationSelect.innerHTML = animationNames.map(name => {
+                const safeName = escapeHTML(name);
+                return `<option value="${safeName}">${safeName}</option>`;
+            }).join('');
+            spineAnimationSelect.value = obj.spineData.animationName || animationNames[0];
+        }
+
+        function updateUIState() {
+            objectListEl.innerHTML = '';
+            for (let i = animObjects.length - 1; i >= 0; i--) {
+                const obj = animObjects[i];
+                const li = document.createElement('li');
+                if (obj.id === selectedObjectId) li.className = 'active';
+                const safeName = escapeHTML(obj.name);
+                li.innerHTML = `
+                    <span class="obj-name" title="${safeName}">${safeName}</span>
+                    <div style="display:flex; gap:2px;">
+                        <button class="layer-btn" onclick="event.stopPropagation(); moveLayer(${obj.id}, 1);">▲</button>
+                        <button class="layer-btn" onclick="event.stopPropagation(); moveLayer(${obj.id}, -1);">▼</button>
+                        <button class="layer-btn btn-danger" onclick="event.stopPropagation(); deleteObject(${obj.id});">🗑</button>
+                    </div>`;
+                li.onclick = () => selectObject(obj.id);
+                objectListEl.appendChild(li);
+            }
+
+            const obj = getSelectedObjectData();
+            updateSpinePanel(obj);
+            if (obj) {
+                propsPanel.style.opacity = 1; propsPanel.style.pointerEvents = 'auto'; btnSnapshot.disabled = false;
+                tintPanel.style.opacity = 1; tintPanel.style.pointerEvents = 'auto';
+                const anyKfSelected = selectedKeyframeIndex !== null || selectedKeyframes.length > 0;
+                if (anyKfSelected) {
+                    btnDeleteKf.style.display = 'block';
+                    btnDeleteKf.innerText = selectedKeyframes.length > 1
+                        ? `Delete ${selectedKeyframes.length} keyframes`
+                        : 'Delete keyframe';
+                    /*
+                    btnDeleteKf.innerText = selectedKeyframes.length > 1
+                        ? `🗑 刪除 ${selectedKeyframes.length} 個影格`
+                        : '🗑 刪除此影格';
+                    */
+                } else {
+                    btnDeleteKf.style.display = 'none';
+                }
+            } else {
+                propsPanel.style.opacity = 0.5; propsPanel.style.pointerEvents = 'none'; btnSnapshot.disabled = true;
+                tintPanel.style.opacity = 0.5; tintPanel.style.pointerEvents = 'none';
+                btnDeleteKf.style.display = 'none';
+                if (selectedKeyframes.length === 0) {
+                    exitEditingFrameMode();
+                }
+            }
+
+            updateClipboardButtons();
+            updateTimelineNavigationButtons();
+            updateGlobalTimeline();
+        }
+
+        function updateMultiSelectUI() {
+            if (selectedKeyframes.length > 1) {
+                multiSelectDisplay.style.display = 'inline';
+                multiSelectDisplay.innerText = `Selected ${selectedKeyframes.length} keyframes`;
+                /*
+                multiSelectDisplay.innerText = `● 已複選 ${selectedKeyframes.length} 個影格`;
+                */
+            } else {
+                multiSelectDisplay.style.display = 'none';
+            }
+        }
+
+        function syncSelectedObjectFromKeyframes() {
+            if (selectedKeyframes.length === 0) return;
+            const firstSelected = selectedKeyframes[0];
+            if (!firstSelected) return;
+            selectedObjectId = firstSelected.objId;
+
+            document.querySelectorAll('.anim-object-wrapper').forEach(el => el.classList.remove('selected'));
+            document.getElementById(`obj-wrap-${selectedObjectId}`)?.classList.add('selected');
+
+            const obj = getSelectedObjectData();
+            if (obj && selectedKeyframeIndex === null) {
+                syncInputsWithState(obj.currentPose);
+            }
+        }
+
+        function getActiveKeyframeSelection() {
+            if (selectedKeyframes.length > 0) {
+                return selectedKeyframes.map(({ objId, kfIndex }) => ({ objId, kfIndex }));
+            }
+            if (selectedKeyframeIndex !== null && selectedObjectId !== null) {
+                return [{ objId: selectedObjectId, kfIndex: selectedKeyframeIndex }];
+            }
+            return [];
+        }
+
+        function updateClipboardButtons() {
+            const hasObject = !!getSelectedObjectData();
+            const hasSelection = getActiveKeyframeSelection().length > 0;
+            btnCopyKf.disabled = !hasSelection;
+            btnPasteKf.disabled = !hasObject || !keyframeClipboard || keyframeClipboard.items.length === 0;
+        }
+
+        function getKeyframeClipboardTargetTime() {
+            return Math.max(0, Math.round((playState.currentTime || 0) * 100) / 100);
+        }
+
+        function copySelectedKeyframes() {
+            const selection = getActiveKeyframeSelection();
+            if (selection.length === 0) return;
+
+            const expanded = selection.map(({ objId, kfIndex }) => {
+                const obj = animObjects.find(o => o.id === objId);
+                const kf = obj?.keyframes?.[kfIndex];
+                if (!obj || !kf) return null;
+                return {
+                    sourceObjId: objId,
+                    sourceObjName: obj.name,
+                    time: kf.time,
+                    pose: {
+                        x: kf.x, y: kf.y, rot: kf.rot, scale: kf.scale, opacity: kf.opacity,
+                        ...normalizePoseEffects(kf)
+                    }
+                };
+            }).filter(Boolean);
+
+            if (expanded.length === 0) return;
+
+            const minTime = Math.min(...expanded.map(item => item.time));
+            keyframeClipboard = {
+                anchorTime: minTime,
+                copiedAt: Date.now(),
+                items: expanded
+                    .sort((a, b) => a.time - b.time || a.sourceObjId - b.sourceObjId)
+                    .map(item => ({
+                        ...item,
+                        relativeTime: Math.round((item.time - minTime) * 100) / 100
+                    }))
+            };
+
+            updateClipboardButtons();
+        }
+
+        function pasteCopiedKeyframes() {
+            if (!keyframeClipboard || keyframeClipboard.items.length === 0) return;
+
+            const baseTime = getKeyframeClipboardTargetTime();
+            const grouped = new Map();
+            keyframeClipboard.items.forEach(item => {
+                if (!grouped.has(item.sourceObjId)) grouped.set(item.sourceObjId, []);
+                grouped.get(item.sourceObjId).push(item);
+            });
+
+            const newSelection = [];
+            grouped.forEach((items, objId) => {
+                const targetObj = animObjects.find(o => o.id === objId);
+                if (!targetObj) return;
+
+                const inserted = [];
+                items.forEach(item => {
+                    const newTime = Math.max(0, Math.round((baseTime + item.relativeTime) * 100) / 100);
+                    const newKf = {
+                        time: newTime,
+                        x: item.pose.x,
+                        y: item.pose.y,
+                        rot: item.pose.rot,
+                        scale: item.pose.scale,
+                        opacity: item.pose.opacity,
+                        ...normalizePoseEffects(item.pose)
+                    };
+                    targetObj.keyframes.push(newKf);
+                    inserted.push(newKf);
+                });
+
+                targetObj.keyframes.sort((a, b) => a.time - b.time);
+                inserted.forEach((insertedKf) => {
+                    const newIndex = targetObj.keyframes.findIndex(kf => kf === insertedKf);
+                    if (newIndex >= 0) newSelection.push({ objId, kfIndex: newIndex });
+                });
+            });
+
+            if (newSelection.length === 0) return;
+
+            selectedKeyframeIndex = null;
+            selectedKeyframes = newSelection;
+            const firstSelection = newSelection[0];
+            if (selectedObjectId !== firstSelection.objId) {
+                selectedObjectId = firstSelection.objId;
+            }
+
+            updateMultiSelectUI();
+            updateUIState();
+
+            const maxTime = Math.max(...newSelection.map(({ objId, kfIndex }) => {
+                const obj = animObjects.find(o => o.id === objId);
+                return obj?.keyframes?.[kfIndex]?.time || 0;
+            }));
+            centerTimelineOnTime(maxTime);
+        }
+
+        function getSelectionToken(objId, kfIndex) {
+            return `${objId}:${kfIndex}`;
+        }
+
+        function getTimelineContentPoint(e) {
+            const rect = timelineScrollArea.getBoundingClientRect();
+            return {
+                x: e.clientX - rect.left + timelineScrollArea.scrollLeft,
+                y: e.clientY - rect.top + timelineScrollArea.scrollTop
+            };
+        }
+
+        function getMarqueeRect() {
+            const left = Math.min(marqueeState.startX, marqueeState.currentX);
+            const top = Math.min(marqueeState.startY, marqueeState.currentY);
+            const right = Math.max(marqueeState.startX, marqueeState.currentX);
+            const bottom = Math.max(marqueeState.startY, marqueeState.currentY);
+            return { left, top, right, bottom, width: right - left, height: bottom - top };
+        }
+
+        function updateTimelineSelectionBox() {
+            const rect = getMarqueeRect();
+            timelineSelectionBox.style.display = marqueeState.isSelecting ? 'block' : 'none';
+            if (!marqueeState.isSelecting) return;
+            timelineSelectionBox.style.left = `${rect.left}px`;
+            timelineSelectionBox.style.top = `${rect.top}px`;
+            timelineSelectionBox.style.width = `${rect.width}px`;
+            timelineSelectionBox.style.height = `${rect.height}px`;
+        }
+
+        function renderSelectedKeyframeNodes() {
+            const selectedSet = new Set(selectedKeyframes.map(s => getSelectionToken(s.objId, s.kfIndex)));
+            document.querySelectorAll('.kf-node').forEach(node => {
+                const token = getSelectionToken(node.dataset.objId, node.dataset.kfIndex);
+                node.classList.toggle('selected', selectedSet.has(token));
+            });
+        }
+
+        function collectKeyframesInRect(rect) {
+            const scrollRect = timelineScrollArea.getBoundingClientRect();
+            const hits = [];
+
+            document.querySelectorAll('.kf-node').forEach(node => {
+                const nodeRect = node.getBoundingClientRect();
+                const nodeLeft = nodeRect.left - scrollRect.left + timelineScrollArea.scrollLeft;
+                const nodeTop = nodeRect.top - scrollRect.top + timelineScrollArea.scrollTop;
+                const nodeRight = nodeLeft + nodeRect.width;
+                const nodeBottom = nodeTop + nodeRect.height;
+                const intersects = !(nodeRight < rect.left || nodeLeft > rect.right || nodeBottom < rect.top || nodeTop > rect.bottom);
+                if (!intersects) return;
+                hits.push({
+                    objId: Number(node.dataset.objId),
+                    kfIndex: Number(node.dataset.kfIndex)
+                });
+            });
+
+            return hits;
+        }
+
+        function startMarqueeSelection(e) {
+            const point = getTimelineContentPoint(e);
+            marqueeState.isSelecting = true;
+            marqueeState.hasMoved = false;
+            marqueeState.additive = !!(e.ctrlKey || e.metaKey);
+            marqueeState.startX = point.x;
+            marqueeState.startY = point.y;
+            marqueeState.currentX = point.x;
+            marqueeState.currentY = point.y;
+            marqueeState.baseSelection = marqueeState.additive ? [...selectedKeyframes] : [];
+
+            if (selectedKeyframeIndex !== null) resetSnapshotMode();
+            if (!marqueeState.additive) selectedKeyframes = [];
+            updateTimelineSelectionBox();
+            renderSelectedKeyframeNodes();
+            updateMultiSelectUI();
+        }
+
+        function updateMarqueeSelection(e) {
+            const point = getTimelineContentPoint(e);
+            marqueeState.currentX = point.x;
+            marqueeState.currentY = point.y;
+            if (Math.abs(marqueeState.currentX - marqueeState.startX) > 2 || Math.abs(marqueeState.currentY - marqueeState.startY) > 2) {
+                marqueeState.hasMoved = true;
+            }
+
+            const rect = getMarqueeRect();
+            const hits = collectKeyframesInRect(rect);
+            const merged = marqueeState.additive ? [...marqueeState.baseSelection] : [];
+            const selectedSet = new Set(merged.map(s => getSelectionToken(s.objId, s.kfIndex)));
+            hits.forEach(hit => {
+                const token = getSelectionToken(hit.objId, hit.kfIndex);
+                if (selectedSet.has(token)) return;
+                selectedSet.add(token);
+                merged.push(hit);
+            });
+            selectedKeyframes = merged;
+
+            updateTimelineSelectionBox();
+            renderSelectedKeyframeNodes();
+            updateMultiSelectUI();
+        }
+
+        function finishMarqueeSelection() {
+            if (!marqueeState.isSelecting) return;
+            marqueeState.isSelecting = false;
+            timelineSelectionBox.style.display = 'none';
+            if (selectedKeyframes.length > 0) {
+                selectedKeyframeIndex = null;
+                syncSelectedObjectFromKeyframes();
+            }
+            updateUIState();
+        }
+
+        // ─── 時間軸渲染子函式 ────────────────────────────────────────────────────────
+        function buildRuler(trackWidth, maxTime) {
+            rulerTicks.style.width = `${trackWidth}px`;
+            rulerRow.style.width   = `${trackWidth + HEADER_WIDTH}px`;
+            for (let i = 0; i * 0.5 <= maxTime; i++) {
+                const tick = document.createElement('div');
+                tick.className  = 'ruler-tick';
+                tick.style.left = `${timeToTimelineX(i * 0.5)}px`;
+                tick.innerText  = (i * 0.5) + 's';
+                rulerTicks.appendChild(tick);
+            }
+        }
+
+        function handleKfNodeMouseDown(e, kf, index, obj, node) {
+            if (playState.isPlaying) return;
+            e.stopPropagation();
+            const isInSelection = selectedKeyframes.some(s => s.objId === obj.id && s.kfIndex === index);
+
+            if (e.ctrlKey || e.metaKey) {
+                if (selectedKeyframeIndex !== null) resetSnapshotMode();
+                if (isInSelection) {
+                    selectedKeyframes = selectedKeyframes.filter(s => !(s.objId === obj.id && s.kfIndex === index));
+                } else {
+                    selectedKeyframes.push({ objId: obj.id, kfIndex: index });
+                }
+                updateGlobalTimeline();
+                updateMultiSelectUI();
+                updateUIState();
+                return;
+            }
+
+            if (!isInSelection) selectedKeyframes = [{ objId: obj.id, kfIndex: index }];
+
+            kfDrag.dragTargets = selectedKeyframes.map(s => {
+                const tObj  = animObjects.find(o => o.id === s.objId);
+                if (!tObj || !tObj.keyframes[s.kfIndex]) return null;
+                const tNode = document.querySelector(`.kf-node[data-obj-id="${s.objId}"][data-kf-index="${s.kfIndex}"]`);
+                return { objId: s.objId, kfIndex: s.kfIndex, startTime: tObj.keyframes[s.kfIndex].time, nodeEl: tNode };
+            }).filter(Boolean);
+
+            Object.assign(kfDrag, {
+                isDragging: true, hasMoved: false,
+                objId: obj.id, kfIndex: index,
+                startX: e.clientX, startTime: kf.time, nodeEl: node
+            });
+        }
+
+        function buildKfNode(kf, index, obj) {
+            const node = document.createElement('div');
+            node.className       = 'kf-node';
+            node.dataset.objId   = obj.id;
+            node.dataset.kfIndex = index;
+            if (selectedKeyframes.some(s => s.objId === obj.id && s.kfIndex === index)) node.classList.add('selected');
+            node.style.left  = `${timeToTimelineX(kf.time)}px`;
+            node.title       = `時間: ${kf.time.toFixed(2)}s\n點擊編輯 | Ctrl+點擊複選 | 拖拉移動`;
+            node.onmousedown = (e) => handleKfNodeMouseDown(e, kf, index, obj, node);
+            return node;
+        }
+
+        function updateGlobalTimeline() {
+            tracksContainer.innerHTML = '';
+            rulerTicks.innerHTML      = '';
+            if (animObjects.length === 0) return;
+
+            const maxTime    = Math.ceil(animObjects.reduce((m, o) =>
+                o.keyframes.length ? Math.max(m, o.keyframes[o.keyframes.length - 1].time) : m, 3)) + 1;
+            const trackWidth = Math.max(800, timeToTimelineX(maxTime));
+
+            buildRuler(trackWidth, maxTime);
+
+            for (let i = animObjects.length - 1; i >= 0; i--) {
+                const obj = animObjects[i];
+
+                const header = document.createElement('div');
+                header.className = 'track-header';
+                header.innerText = obj.name;
+                header.onclick   = () => selectObject(obj.id);
+
+                const framesArea = document.createElement('div');
+                framesArea.className  = 'track-frames';
+                framesArea.style.width = `${trackWidth}px`;
+                obj.keyframes.forEach((kf, idx) => framesArea.appendChild(buildKfNode(kf, idx, obj)));
+
+                const row = document.createElement('div');
+                row.className   = 'track-row';
+                row.style.width = `${trackWidth + HEADER_WIDTH}px`;
+                if (obj.id === selectedObjectId) row.classList.add('active-track');
+                row.appendChild(header);
+                row.appendChild(framesArea);
+                tracksContainer.appendChild(row);
+            }
+        }
+
+        // --- 手動刷洗時間軸 (Scrubbing) ---
+        rulerRow.addEventListener('mousedown', (e) => {
+            if (playState.isPlaying || animObjects.length === 0) return;
+            scrubState.isScrubbing = true;
+            scrubTimeDisplay.style.display = 'block';
+            exitEditingFrameMode(); 
+            handleScrub(e);
+        });
+
+        tracksContainer.addEventListener('mousedown', (e) => {
+            if (playState.isPlaying || e.button !== 0) return;
+            if (e.target.closest('.kf-node') || e.target.closest('.track-header')) return;
+            if (!e.target.closest('.track-frames')) return;
+
+            e.preventDefault();
+            startMarqueeSelection(e);
+        });
+
+        function handleScrub(e) {
+            const rect = rulerTicks.getBoundingClientRect();
+            let x = e.clientX - rect.left;
+            x = Math.max(0, x); 
+            
+            let time = timelineXToTime(x);
+            time = Math.round(time * 100) / 100;
+            
+            seekToTime(time);
+        }
+
+        function seekToTime(time) {
+            playState.currentTime = time;
+            playhead.style.display = 'block';
+            updatePlayheadPosition();
+            scrubTimeDisplay.innerText = `${time.toFixed(2)}s`;
+
+            animObjects.forEach(obj => {
+                if (obj.keyframes.length === 0) return;
+                const pose = interpolatePose(obj.keyframes, time);
+                if (!pose) return;
+                applyPoseToDOM(obj.domWrapper, pose);
+                obj.currentPose = { ...pose };
+                if (obj.id === selectedObjectId && selectedKeyframeIndex === null) syncInputsWithState(pose);
+            });
+        }
+
+        // --- 全域事件監聽 (拖曳與刷洗) ---
+        document.addEventListener('mousemove', (e) => {
+            if (scrubState.isScrubbing) {
+                handleScrub(e);
+            }
+
+            if (marqueeState.isSelecting) {
+                updateMarqueeSelection(e);
+            }
+
+            if (kfDrag.isDragging) {
+                if (Math.abs(e.clientX - kfDrag.startX) > 3 && !kfDrag.hasMoved) {
+                    kfDrag.hasMoved = true;
+                    kfDrag.dragTargets.forEach(t => t.nodeEl?.classList.add('dragging'));
+                }
+                if (kfDrag.hasMoved) {
+                    const dx = e.clientX - kfDrag.startX;
+                    kfDrag.dragTargets.forEach(target => {
+                        if (!target.nodeEl) return;
+                        let newTime = target.startTime + timelineXToTime(dx);
+                        newTime = Math.max(0, newTime);
+                        target.nodeEl.style.left = `${timeToTimelineX(newTime)}px`;
+                        target.nodeEl.title = `時間: ${newTime.toFixed(2)}s`;
+                    });
+                }
+            }
+            
+            if (drag.isDragging && selectedObjectId !== null) {
+                const obj = getSelectedObjectData();
+                if (!obj) { drag.isDragging = false; return; }
+                obj.currentPose.x = drag.objX + (e.clientX - drag.sx) / canvasZoom;
+                obj.currentPose.y = drag.objY - (e.clientY - drag.sy) / canvasZoom;
+                syncInputsWithState(obj.currentPose); applyPoseToDOM(obj.domWrapper, obj.currentPose);
+            }
+        });
+
+        document.addEventListener('mouseup', (e) => {
+            if (scrubState.isScrubbing) {
+                scrubState.isScrubbing = false;
+                scrubTimeDisplay.style.display = 'none';
+            }
+
+            if (marqueeState.isSelecting) {
+                if (!marqueeState.hasMoved) {
+                    updateMarqueeSelection(e);
+                }
+                finishMarqueeSelection();
+            }
+
+            if (kfDrag.isDragging) {
+                kfDrag.isDragging = false;
+                kfDrag.dragTargets.forEach(t => t.nodeEl?.classList.remove('dragging'));
+
+                if (kfDrag.hasMoved) {
+                    const dx = e.clientX - kfDrag.startX;
+                    const affectedObjIds = new Set();
+
+                    // 套用新時間
+                    kfDrag.dragTargets.forEach(target => {
+                        const targetObj = animObjects.find(o => o.id === target.objId);
+                        if (!targetObj || !targetObj.keyframes[target.kfIndex]) return;
+                        let newTime = target.startTime + timelineXToTime(dx);
+                        newTime = Math.max(0, Math.round(newTime * 100) / 100);
+                        targetObj.keyframes[target.kfIndex].time = newTime;
+                        target.newTime = newTime;
+                        affectedObjIds.add(target.objId);
+                    });
+
+                    // 排序後找回新索引，更新 selectedKeyframes
+                    const newSelected = [];
+                    affectedObjIds.forEach(objId => {
+                        const targetObj = animObjects.find(o => o.id === objId);
+                        if (!targetObj) return;
+                        targetObj.keyframes.sort((a, b) => a.time - b.time);
+                        kfDrag.dragTargets.filter(t => t.objId === objId).forEach(target => {
+                            if (target.newTime !== undefined) {
+                                const newIdx = targetObj.keyframes.findIndex(kf => kf.time === target.newTime);
+                                if (newIdx >= 0) newSelected.push({ objId, kfIndex: newIdx });
+                            }
+                        });
+                    });
+                    // 保留未被移動的物件的選取狀態
+                    selectedKeyframes.filter(s => !affectedObjIds.has(s.objId)).forEach(s => newSelected.push(s));
+                    selectedKeyframes = newSelected;
+
+                    if (selectedKeyframeIndex !== null) resetSnapshotMode();
+                    updateUIState();
+                    updateMultiSelectUI();
+                } else {
+                    // 點擊（沒有移動）：進入單格編輯模式（selectObject 要先呼叫，否則會清掉 selectedKeyframes）
+                    if (selectedObjectId !== kfDrag.objId) selectObject(kfDrag.objId);
+                    selectedKeyframes = [{ objId: kfDrag.objId, kfIndex: kfDrag.kfIndex }];
+                    enterEditingFrameMode(kfDrag.kfIndex);
+                }
+                kfDrag.nodeEl = null;
+                kfDrag.dragTargets = [];
+            }
+
+            if (drag.isDragging) drag.isDragging = false;
+        });
+
+
+        // --- 📸 影格快門管理 ---
+        document.addEventListener('keydown', (e) => {
+            const tagName = e.target?.tagName?.toLowerCase?.() || '';
+            if (['input', 'textarea', 'select'].includes(tagName)) return;
+
+            const selection = getActiveKeyframeSelection();
+            if (e.key === 'PageUp') {
+                e.preventDefault();
+                jumpToPreviousKeyframe();
+                return;
+            }
+            if (e.key === 'PageDown') {
+                e.preventDefault();
+                jumpToNextKeyframe();
+                return;
+            }
+            if (e.code === 'Space') {
+                e.preventDefault();
+                if (playState.isPlaying) stopAnimation();
+                else playAllObjects();
+                return;
+            }
+            if ((e.key === 'Delete' || e.key === 'Backspace') && selection.length > 0) {
+                e.preventDefault();
+                deleteSelectedKeyframe();
+                return;
+            }
+
+            if (!(e.ctrlKey || e.metaKey)) return;
+
+            const key = e.key.toLowerCase();
+            if (key === 'c') {
+                if (selection.length === 0) return;
+                e.preventDefault();
+                copySelectedKeyframes();
+                return;
+            }
+
+            if (key === 'v') {
+                if (!keyframeClipboard || keyframeClipboard.items.length === 0) return;
+                e.preventDefault();
+                pasteCopiedKeyframes();
+            }
+        });
+
+        function resetSnapshotMode() {
+            selectedKeyframeIndex = null;
+            btnSnapshot.innerText = '📸 記錄為新影格';
+            btnSnapshot.classList.remove('update-mode');
+            updateHint.style.display = 'none';
+            intervalInput.value = 0.5;
+        }
+
+        function handleSnapshotAction() {
+            if (selectedKeyframeIndex !== null) updateSelectedKeyframe();
+            else recordNewSnapshot();
+        }
+
+        function recordNewSnapshot() {
+            const obj = getSelectedObjectData();
+            if (!obj) return;
+            const interval = Math.max(0, parseFloat(intervalInput.value) || 0);
+            let newTime;
+            if (obj.keyframes.length === 0) {
+                newTime = interval;
+            } else {
+                const lastTime = obj.keyframes[obj.keyframes.length - 1].time;
+                newTime = lastTime + Math.max(interval, 0.01); // 修復 Bug 1：防止相同時間點產生 NaN
+            }
+            newTime = Math.round(newTime * 100) / 100;
+
+            const currentPose = getInputPoseValues();
+            obj.keyframes.push({ time: newTime, ...currentPose });
+            obj.currentPose = { ...currentPose }; 
+            updateUIState();
+            
+            const scrollArea = document.getElementById('timeline-scroll-area');
+            centerTimelineOnTime(newTime);
+        }
+
+        function enterEditingFrameMode(index) {
+            if (playState.isPlaying) stopAnimation();
+            const obj = getSelectedObjectData();
+            if (!obj || !obj.keyframes[index]) return;
+
+            selectedKeyframeIndex = index;
+            const targetKf = obj.keyframes[index];
+            seekToTime(targetKf.time);
+            centerTimelineOnTime(targetKf.time);
+
+            applyPoseToDOM(obj.domWrapper, targetKf);
+            syncInputsWithState(targetKf);
+
+            let currentInterval = targetKf.time;
+            if (index > 0) currentInterval = targetKf.time - obj.keyframes[index - 1].time;
+            intervalInput.value = currentInterval.toFixed(2);
+
+            btnSnapshot.innerText = `🔄 更新影格 (${targetKf.time.toFixed(2)}s)`;
+            btnSnapshot.classList.add('update-mode');
+            
+            updateUIState(); 
+            updateHint.style.display = 'block';
+        }
+
+        function exitEditingFrameMode() {
+            if (selectedKeyframeIndex === null && selectedKeyframes.length === 0) return;
+            selectedKeyframes = [];
+            resetSnapshotMode();
+            updateMultiSelectUI();
+            updateUIState();
+        }
+
+        function updateSelectedKeyframe() {
+            const obj = getSelectedObjectData();
+            if (!obj || selectedKeyframeIndex === null) return;
+
+            const editedPose = getInputPoseValues();
+            const oldTime = obj.keyframes[selectedKeyframeIndex].time;
+            const newInterval = Math.max(0, parseFloat(intervalInput.value) || 0);
+
+            let newTime;
+            if (selectedKeyframeIndex === 0) {
+                newTime = newInterval; // 第一格允許從任意非負時間開始
+            } else {
+                const prevTime = obj.keyframes[selectedKeyframeIndex - 1].time;
+                newTime = prevTime + Math.max(newInterval, 0.01); // 修復 Bug 1+3：確保嚴格大於前一格且非負
+            }
+            newTime = Math.max(0, Math.round(newTime * 100) / 100);
+            const timeDiff = newTime - oldTime;
+
+            obj.keyframes[selectedKeyframeIndex] = { time: newTime, ...editedPose };
+            for (let i = selectedKeyframeIndex + 1; i < obj.keyframes.length; i++) {
+                obj.keyframes[i].time = Math.max(0, obj.keyframes[i].time + timeDiff);
+            }
+
+            obj.currentPose = { ...editedPose }; 
+            exitEditingFrameMode();
+        }
+
+        function deleteSelectedKeyframe() {
+            const toDelete = selectedKeyframes.length > 0
+                ? [...selectedKeyframes]
+                : (selectedKeyframeIndex !== null ? [{ objId: selectedObjectId, kfIndex: selectedKeyframeIndex }] : []);
+            if (toDelete.length === 0) return;
+
+            // 同一物件內按降序刪除，避免索引錯位
+            const grouped = {};
+            toDelete.forEach(({ objId, kfIndex }) => {
+                if (!grouped[objId]) grouped[objId] = [];
+                grouped[objId].push(kfIndex);
+            });
+            Object.entries(grouped).forEach(([objId, indices]) => {
+                const obj = animObjects.find(o => o.id === Number(objId));
+                if (!obj) return;
+                indices.sort((a, b) => b - a).forEach(i => obj.keyframes.splice(i, 1));
+            });
+
+            selectedKeyframes = [];
+            resetSnapshotMode();
+            updateMultiSelectUI();
+            updateUIState();
+        }
+
+        function applyPoseToDOM(domWrapper, pose) {
+            domWrapper.style.transform = `translate(calc(-50% + ${pose.x}px), calc(-50% + ${-pose.y}px)) rotate(${pose.rot}deg) scale(${pose.scale})`;
+            domWrapper.style.opacity = pose.opacity;
+            const effects = normalizePoseEffects(pose);
+            const tint = effects.tint;
+            const filters = [];
+            if (domWrapper.tintFloodNode) {
+                domWrapper.tintFloodNode.setAttribute('flood-color', tint);
+                domWrapper.tintFloodNode.setAttribute('flood-opacity', (effects.tintStrength / 100).toFixed(2));
+            }
+            if (effects.tintStrength > 0 && tint !== DEFAULT_TINT) {
+                filters.push(`url(#${domWrapper.dataset.tintFilterId})`);
+            }
+            if (effects.hue !== DEFAULT_HUE) {
+                filters.push(`hue-rotate(${effects.hue}deg)`);
+            }
+            if (effects.brightness !== DEFAULT_BRIGHTNESS) {
+                filters.push(`brightness(${(effects.brightness / 100).toFixed(2)})`);
+            }
+            if (effects.contrast !== DEFAULT_CONTRAST) {
+                filters.push(`contrast(${(effects.contrast / 100).toFixed(2)})`);
+            }
+            if (domWrapper.contentLayer) {
+                domWrapper.contentLayer.style.filter = filters.length > 0 ? filters.join(' ') : 'none';
+                domWrapper.contentLayer.style.mixBlendMode = effects.blendMode;
+            }
+        }
+
+        function syncInputsWithState(pose) {
+            const effects = normalizePoseEffects(pose);
+            inputs.x.value = Math.round(pose.x); inputs.y.value = Math.round(pose.y);
+            inputs.rot.value = Math.round(pose.rot); inputs.scale.value = parseFloat(pose.scale.toFixed(2));
+            inputs.opacity.value = parseFloat(pose.opacity.toFixed(2));
+            inputs.tint.value = effects.tint;
+            inputs.tintStrength.value = Math.round(effects.tintStrength);
+            inputs.hue.value = Math.round(effects.hue);
+            inputs.brightness.value = Math.round(effects.brightness);
+            inputs.contrast.value = Math.round(effects.contrast);
+            inputs.blendMode.value = effects.blendMode;
+        }
+
+        // --- 畫布拖拉起點 ---
+        function onObjectMouseDown(e) {
+            if (playState.isPlaying) return;
+            const wrap = e.currentTarget;
+            if (wrap.dataset.objId !== String(selectedObjectId)) return; 
+
+            const objData = getSelectedObjectData();
+            if (!objData) return;
+            drag.isDragging = true; drag.sx = e.clientX; drag.sy = e.clientY;
+            drag.objX = objData.currentPose.x; drag.objY = objData.currentPose.y;
+
+            e.preventDefault(); e.stopPropagation();
+        }
+
+        // --- 播放邏輯 ---
+        const lerp = (start, end, t) => start + (end - start) * t;
+
+        function interpolatePose(kfs, time) {
+            if (kfs.length === 0) return null;
+            if (kfs.length === 1 || time <= kfs[0].time) return { ...kfs[0] };
+            if (time >= kfs[kfs.length - 1].time) return { ...kfs[kfs.length - 1] };
+            for (let i = 0; i < kfs.length - 1; i++) {
+                if (time >= kfs[i].time && time <= kfs[i + 1].time) {
+                    const t = (time - kfs[i].time) / (kfs[i + 1].time - kfs[i].time);
+                    return {
+                        x:       lerp(kfs[i].x,       kfs[i + 1].x,       t),
+                        y:       lerp(kfs[i].y,       kfs[i + 1].y,       t),
+                        rot:     lerp(kfs[i].rot,     kfs[i + 1].rot,     t),
+                        scale:   lerp(kfs[i].scale,   kfs[i + 1].scale,   t),
+                        opacity: lerp(kfs[i].opacity, kfs[i + 1].opacity, t),
+                        tint:    lerpTint(kfs[i].tint || DEFAULT_TINT, kfs[i + 1].tint || DEFAULT_TINT, t),
+                        tintStrength: lerp(getNum(kfs[i].tintStrength, DEFAULT_TINT_STRENGTH), getNum(kfs[i + 1].tintStrength, DEFAULT_TINT_STRENGTH), t),
+                        hue:     lerp(getNum(kfs[i].hue, DEFAULT_HUE), getNum(kfs[i + 1].hue, DEFAULT_HUE), t),
+                        brightness: lerp(getNum(kfs[i].brightness, DEFAULT_BRIGHTNESS), getNum(kfs[i + 1].brightness, DEFAULT_BRIGHTNESS), t),
+                        contrast: lerp(getNum(kfs[i].contrast, DEFAULT_CONTRAST), getNum(kfs[i + 1].contrast, DEFAULT_CONTRAST), t),
+                        blendMode: normalizeBlendMode(kfs[i].blendMode)
+                    };
+                }
+            }
+            return null;
+        }
+
+        function playAllObjects() {
+            if (animObjects.length === 0 || playState.isPlaying) return;
+            let hasFrames = false; let maxDuration = 0;
+            animObjects.forEach(obj => {
+                if (obj.keyframes.length > 0) {
+                    hasFrames = true;
+                    maxDuration = Math.max(maxDuration, obj.keyframes[obj.keyframes.length - 1].time);
+                }
+                if (obj.type === SPINE_TYPE) {
+                    hasFrames = true;
+                    maxDuration = Math.max(maxDuration, obj.spineData?.animationDuration || 3);
+                }
+            });
+            if (!hasFrames) { alert("無影格可播放"); return; }
+
+            playState.totalDuration = maxDuration === 0 ? 0.5 : maxDuration;
+            
+            // [修復 Bug 3] 如果播到底了，從頭開始；否則從現在位置開始
+            if (playState.currentTime >= playState.totalDuration) {
+                playState.currentTime = 0;
+            }
+
+            playState.isPlaying = true;
+            btnPlay.style.display = 'none'; btnStop.style.display = 'block';
+            
+            canvas.style.pointerEvents = 'none'; propsPanel.parentElement.style.opacity = 0.4;
+            document.querySelectorAll('.panel-section button:not(.btn-play):not(.btn-danger)').forEach(b => b.disabled = true);
+            exitEditingFrameMode();
+
+            playhead.style.display = 'block';
+            
+            // [修復 Bug 3] 扣除已經播放過的時間
+            playState.startTime = performance.now() - (playState.currentTime * 1000);
+            playState.animationFrameId = requestAnimationFrame(animationLoop);
+        }
+
+        function stopAnimation() {
+            if (!playState.isPlaying) return;
+            playState.isPlaying = false;
+            btnPlay.style.display = 'block'; btnStop.style.display = 'none';
+            cancelAnimationFrame(playState.animationFrameId);
+
+            canvas.style.pointerEvents = 'auto'; propsPanel.parentElement.style.opacity = 1;
+            
+            // [修復 Bug 4] 先盲解鎖所有按鈕，立刻呼叫 updateUIState 套用正確狀態邏輯
+            document.querySelectorAll('.panel-section button:not(.btn-play):not(.btn-danger)').forEach(b => b.disabled = false);
+            updateUIState(); 
+            
+            // 讓物件停留在暫停的瞬間
+            seekToTime(playState.currentTime);
+            
+            // 恢復當前選取物件的輸入框，且不破壞剛剛的 currentPose 緩存
+            const selObj = getSelectedObjectData();
+            if (selectedObjectId !== null && selectedKeyframeIndex === null && selObj) {
+                syncInputsWithState(selObj.currentPose);
+            }
+            animObjects.forEach(obj => {
+                if (obj.type === SPINE_TYPE && obj.spineState) {
+                    obj.spineState.previewStartedAt = performance.now() - (playState.currentTime * 1000);
+                }
+            });
+        }
+
+        function animationLoop(now) {
+            if (!playState.isPlaying) return;
+            const t_app = (now - playState.startTime) / 1000;
+            
+            // 更新狀態機中的時間，讓暫停功能知道現在播到哪
+            playState.currentTime = t_app; 
+
+            updatePlayheadPosition();
+
+            animObjects.forEach(obj => {
+                if (obj.keyframes.length === 0) return;
+                const pose = interpolatePose(obj.keyframes, t_app);
+                if (pose) applyPoseToDOM(obj.domWrapper, pose);
+            });
+
+            if (t_app >= playState.totalDuration) {
+                playState.currentTime = playState.totalDuration;
+                stopAnimation();
+            } else {
+                playState.animationFrameId = requestAnimationFrame(animationLoop);
+            }
+        }
+
+        /* Legacy import/export block replaced below.
+        function exportProjectJSON() {
+            if (animObjects.length === 0) { alert("沒有工程可匯出"); return; }
+            const exportData = animObjects.map(obj => ({
+                name: obj.name,
+                src: obj.src,
+                keyframes: obj.keyframes.map(kf => ({ time: parseFloat(kf.time.toFixed(3)), x: Math.round(kf.x), y: Math.round(kf.y), rot: Math.round(kf.rot), scale: parseFloat(kf.scale.toFixed(2)), opacity: parseFloat(kf.opacity.toFixed(2)) }))
+            }));
+            const dataStr = JSON.stringify({ project_type: "PixelAnimator_NLE", version: 2, objects: exportData }, null, 2);
+            const a = document.createElement('a');
+            const blobUrl = URL.createObjectURL(new Blob([dataStr], { type: "application/json" }));
+            a.href = blobUrl;
+            a.download = "animation_project.json";
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(blobUrl);
+        }
+
+        function importProjectJSON() {
+            document.getElementById('json-import-input').click();
+        }
+
+        document.getElementById('json-import-input').addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                try {
+                    const data = JSON.parse(ev.target.result);
+
+                    if (data.project_type !== 'PixelAnimator_NLE') {
+                        alert('❌ 無效的工程檔案\n此 JSON 並非由本工具匯出'); return;
+                    }
+                    if (!Array.isArray(data.objects) || data.objects.length === 0) {
+                        alert('❌ JSON 中找不到任何物件資料'); return;
+                    }
+                    if (!data.objects.every(o => o.src)) {
+                        alert('⚠️ 舊版格式不含圖片資料，無法還原\n\n請重新用新版工具匯出後再匯入'); return;
+                    }
+
+                    let overwrite = true;
+                    if (animObjects.length > 0) {
+                        overwrite = confirm(
+                            `匯入 ${data.objects.length} 個物件\n\n` +
+                            `確定 → 清空畫布後匯入\n取消 → 合併加入現有工程`
+                        );
+                    }
+
+                    if (overwrite) {
+                        if (playState.isPlaying) stopAnimation();
+                        animObjects.forEach(obj => obj.domWrapper?.remove());
+                        animObjects = [];
+                        selectedObjectId = null;
+                        selectedKeyframeIndex = null;
+                        selectedKeyframes = [];
+                        updateMultiSelectUI();
+                    }
+
+                    data.objects.forEach(objData => {
+                        addNewObject(objData.name, objData.src);
+                        const newObj = animObjects[animObjects.length - 1];
+                        newObj.keyframes = objData.keyframes.map(kf => ({ ...kf }));
+                    });
+
+                    btnPlay.disabled = animObjects.length === 0;
+                    updateUIState();
+
+                } catch (err) {
+                    alert('❌ 匯入失敗：' + err.message);
+                }
+                e.target.value = '';
+            };
+            reader.readAsText(file);
+        });
+        */
+
+        function exportProjectJSON() {
+            if (animObjects.length === 0) { alert('No project data to export.'); return; }
+            const exportData = animObjects.map(obj => ({
+                name: obj.name,
+                type: obj.type || IMAGE_TYPE,
+                src: obj.type === IMAGE_TYPE ? obj.src : undefined,
+                spineData: obj.type === SPINE_TYPE ? {
+                    editorVersion: obj.spineData.editorVersion,
+                    skeletonPath: obj.spineData.skeletonPath,
+                    atlasPath: obj.spineData.atlasPath,
+                    rawData: obj.spineData.rawData,
+                    animationName: obj.spineData.animationName,
+                    animationNames: obj.spineData.animationNames,
+                    animationDuration: obj.spineData.animationDuration,
+                    size: obj.spineData.size
+                } : undefined,
+                keyframes: obj.keyframes.map(kf => ({
+                    time: parseFloat(kf.time.toFixed(3)),
+                    x: Math.round(kf.x),
+                    y: Math.round(kf.y),
+                    rot: Math.round(kf.rot),
+                    scale: parseFloat(kf.scale.toFixed(2)),
+                    opacity: parseFloat(kf.opacity.toFixed(2)),
+                    tint: normalizeTintHex(kf.tint || DEFAULT_TINT),
+                    tintStrength: parseFloat(getNum(kf.tintStrength, DEFAULT_TINT_STRENGTH).toFixed(2)),
+                    hue: parseFloat(getNum(kf.hue, DEFAULT_HUE).toFixed(2)),
+                    brightness: parseFloat(getNum(kf.brightness, DEFAULT_BRIGHTNESS).toFixed(2)),
+                    contrast: parseFloat(getNum(kf.contrast, DEFAULT_CONTRAST).toFixed(2)),
+                    blendMode: normalizeBlendMode(kf.blendMode)
+                }))
+            }));
+
+            const dataStr = JSON.stringify({ project_type: 'PixelAnimator_NLE', version: 3, objects: exportData }, null, 2);
+            const a = document.createElement('a');
+            const blobUrl = URL.createObjectURL(new Blob([dataStr], { type: 'application/json' }));
+            a.href = blobUrl;
+            a.download = 'animation_project.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(blobUrl);
+        }
+
+        spineInput.addEventListener('change', async function (e) {
+            const files = Array.from(e.target.files || []);
+            if (files.length === 0) return;
+
+            try {
+                const spineData = await buildSpineObjectData(files);
+                await addSpineObject(spineData);
+            } catch (err) {
+                alert(`Spine import failed: ${err.message}`);
+            }
+
+            e.target.value = '';
+        });
+
+        spineAnimationSelect.addEventListener('change', () => {
+            const obj = getSelectedObjectData();
+            if (!obj || obj.type !== SPINE_TYPE) return;
+            obj.spineData.animationName = spineAnimationSelect.value;
+            obj.spineState.previewStartedAt = performance.now();
+            syncSpineElementConfig(obj);
+        });
+
+        function importProjectJSON() {
+            document.getElementById('json-import-input').click();
+        }
+
+        document.getElementById('json-import-input').addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async (ev) => {
+                try {
+                    const data = JSON.parse(ev.target.result);
+
+                    if (data.project_type !== 'PixelAnimator_NLE') {
+                        alert('Unsupported project JSON format.');
+                        return;
+                    }
+                    if (!Array.isArray(data.objects) || data.objects.length === 0) {
+                        alert('This JSON file does not contain any objects.');
+                        return;
+                    }
+
+                    const isSupportedObject = (obj) => {
+                        if (!obj) return false;
+                        if ((obj.type || IMAGE_TYPE) === SPINE_TYPE) return !!obj.spineData;
+                        return !!obj.src;
+                    };
+                    if (!data.objects.every(isSupportedObject)) {
+                        alert('The imported JSON contains unsupported object data.');
+                        return;
+                    }
+
+                    let overwrite = true;
+                    if (animObjects.length > 0) {
+                        overwrite = confirm(`Import ${data.objects.length} objects and replace the current scene?`);
+                    }
+
+                    if (overwrite) {
+                        if (playState.isPlaying) stopAnimation();
+                        animObjects.forEach(obj => {
+                            obj.spineElement?.dispose?.();
+                            obj.domWrapper?.tintFilterNode?.remove?.();
+                            obj.domWrapper?.remove();
+                        });
+                        animObjects = [];
+                        selectedObjectId = null;
+                        selectedKeyframeIndex = null;
+                        selectedKeyframes = [];
+                        updateMultiSelectUI();
+                    }
+
+                    for (const objData of data.objects) {
+                        const objectType = objData.type || IMAGE_TYPE;
+                        if (objectType === SPINE_TYPE) {
+                            await addSpineObject({ ...objData.spineData, name: objData.name }, objData.keyframes || []);
+                        } else {
+                            const newObj = addNewObject(objData.name, objData.src);
+                            newObj.keyframes = (objData.keyframes || []).map(normalizeKeyframe);
+                        }
+                    }
+
+                    btnPlay.disabled = animObjects.length === 0;
+                    updateUIState();
+                } catch (err) {
+                    alert(`Project import failed: ${err.message}`);
+                }
+
+                e.target.value = '';
+            };
+            reader.readAsText(file);
+        });
+    </script>
+</body>
+</html>
