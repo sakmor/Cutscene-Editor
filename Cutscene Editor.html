@@ -17,6 +17,7 @@
             --danger-color: #c0392b;
             --track-bg: #1a1a1a;
             --track-header-bg: #2d2d30;
+            --bottom-panel-height: 250px;
         }
 
         body { 
@@ -27,7 +28,7 @@
         }
 
         /* --- 上半部：工作區 --- */
-        #workspace { display: flex; flex-grow: 1; overflow: hidden; height: calc(100vh - 250px); }
+        #workspace { display: flex; flex: 1 1 auto; min-height: 0; overflow: hidden; }
 
         #canvas-container { 
             flex-grow: 1; position: relative; 
@@ -46,7 +47,6 @@
             position: absolute; top: 50%; left: 50%;
             will-change: transform, opacity; cursor: grab; z-index: 2;
             outline: 2px dashed rgba(255, 255, 255, 0); transition: outline 0.1s;
-            isolation: isolate;
         }
         .anim-object-wrapper.selected { outline: 2px solid var(--accent-color); box-shadow: 0 0 10px rgba(0, 122, 204, 0.4); }
         .anim-object-wrapper img { display: block; pointer-events: none; max-width: none;}
@@ -71,23 +71,104 @@
         .anim-object-wrapper.spine-object spine-skeleton {
             display: block; width: 100%; height: 100%; pointer-events: none;
         }
+        .anim-object-wrapper.block-object .anim-object-content {
+            display: block;
+        }
+        .shape-block {
+            width: 160px;
+            height: 160px;
+            background: #ffffff;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+            pointer-events: none;
+        }
 
         #sidebar { 
             width: 320px; background-color: var(--panel-color); 
             border-left: 1px solid var(--border-color); display: flex; flex-direction: column; overflow-y: auto;
         }
         
-        .panel-section { padding: 12px; border-bottom: 1px solid var(--border-color); }
-        h2 { margin: 0 0 8px 0; font-size: 15px; text-align: center; color: white; }
-        h3 { margin: 0 0 6px 0; font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 1px;}
+        .panel-section { padding: 12px; border-bottom: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 8px; }
+        h2 { margin: 0; font-size: 15px; text-align: center; color: white; }
+        h3 { margin: 0; font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 1px;}
+        .section-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .section-body { display: flex; flex-direction: column; gap: 6px; min-height: 0; }
+        .section-toggle {
+            border: 1px solid #555;
+            background: #333;
+            color: #ddd;
+            border-radius: 999px;
+            padding: 2px 8px;
+            font-size: 11px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .section-toggle:hover { background: #444; color: white; }
+        .panel-section.is-collapsed .section-body { display: none; }
+        .panel-section.is-collapsed.snapshot-section { flex-grow: 0; }
+        .subpanel-section {
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.03);
+            overflow: hidden;
+        }
+        .subpanel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 8px 10px;
+            background: rgba(255, 255, 255, 0.04);
+        }
+        .subpanel-title {
+            font-size: 11px;
+            font-weight: bold;
+            color: #d7dde5;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+        }
+        .subpanel-body {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 10px;
+            min-height: 0;
+        }
+        .subpanel-section.is-collapsed .subpanel-body { display: none; }
+        .subsection-toggle {
+            border: 1px solid #555;
+            background: #2e2e34;
+            color: #ddd;
+            border-radius: 999px;
+            padding: 2px 8px;
+            font-size: 11px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .subsection-toggle:hover { background: #414149; color: white; }
 
         .control-group { display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px; }
         .control-group label { font-size: 11px; color: #999; }
-        input[type="number"], input[type="text"], input[type="color"], select { 
+        .inline-action-row { display: flex; gap: 6px; align-items: center; }
+        .inline-action-row input { flex: 1; }
+        .inline-action-row button {
+            flex-shrink: 0;
+            padding: 6px 10px;
+            border: none;
+            border-radius: 4px;
+            background: #444;
+            color: white;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .inline-action-row button:hover { background: #555; }
+        #output-mask-status { font-size: 10px; color: #8fb7d8; min-height: 14px; }
+        input[type="number"], input[type="text"], input[type="color"], select, textarea { 
             width: 100%; padding: 4px 6px; box-sizing: border-box; 
             background: #333; border: 1px solid var(--border-color); color: white; border-radius: 3px; font-family: monospace; font-size: 12px;
         }
         input[type="color"] { padding: 2px; height: 30px; }
+        textarea { resize: vertical; min-height: 58px; line-height: 1.4; }
         input:disabled, select:disabled { opacity: 0.4; cursor: not-allowed; }
         
         .btn-add-obj-wrapper { position: relative; overflow: hidden; width: 100%; margin-bottom: 5px; }
@@ -142,18 +223,61 @@
         .list-container { background: #1a1a1a; border: 1px solid var(--border-color); border-radius: 3px; overflow-y: auto;}
         #object-list-container { height: 110px; }
         #object-list { list-style:none; padding:0; margin:0; }
-        #object-list li { padding: 4px 8px; border-bottom: 1px solid #2a2a2a; cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
+        #object-list li { padding: 6px 8px; min-height: 36px; border-bottom: 1px solid #2a2a2a; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        #object-list li.has-note { min-height: 46px; align-items: flex-start; }
         #object-list li:hover { background: #2a2a2a; }
         #object-list li.active { background: rgba(0, 122, 204, 0.2); border-left: 3px solid var(--accent-color); color: white;}
+        .object-list-info { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
         .obj-name { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .obj-note { font-size: 11px; color: #9aa7b5; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        #object-list li.active .obj-note { color: #d4e9ff; }
+        .layer-actions { display: flex; gap: 2px; flex-shrink: 0; align-self: center; }
         .layer-btn { font-size: 10px; background: #444; color: #ccc; padding: 3px 6px; border: none; border-radius: 3px; cursor: pointer; }
         .layer-btn:hover { background: #555; color: white; }
         .layer-btn.btn-danger:hover { background: var(--danger-color); }
 
         /* --- 下半部：全域時間軸 --- */
+        #timeline-resizer {
+            height: 10px;
+            flex: 0 0 10px;
+            cursor: ns-resize;
+            background:
+                linear-gradient(to bottom, #202022, #2a2a2d);
+            border-top: 1px solid #171718;
+            border-bottom: 1px solid #3c3c42;
+            position: relative;
+        }
+        #timeline-resizer::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 48px;
+            height: 4px;
+            transform: translate(-50%, -50%);
+            border-radius: 999px;
+            background:
+                repeating-linear-gradient(
+                    to right,
+                    rgba(255, 255, 255, 0.18) 0 6px,
+                    rgba(255, 255, 255, 0.04) 6px 10px
+                );
+        }
+        #timeline-resizer:hover {
+            background: linear-gradient(to bottom, #252529, #323238);
+        }
+        body.is-resizing-timeline,
+        body.is-resizing-timeline * {
+            cursor: ns-resize !important;
+            user-select: none !important;
+        }
+
         #bottom-panel { 
-            height: 250px; background: var(--panel-color); border-top: 2px solid var(--border-color); 
+            height: var(--bottom-panel-height);
+            flex: 0 0 var(--bottom-panel-height);
+            background: var(--panel-color); border-top: 2px solid var(--border-color); 
             display: flex; flex-direction: column;
+            min-height: 0;
         }
         
         #timeline-toolbar {
@@ -186,12 +310,88 @@
         .btn-import:hover { background: #6e6e6e; }
         .btn-export { background: var(--accent-color); }
         .btn-export:hover { background: #1e8fd5; }
+        .btn-save-secondary { background: #3f4e5f; }
+        .btn-save-secondary:hover { background: #506579; }
         .snapshot-section { flex-grow: 1; background: rgba(230, 126, 34, 0.05); }
         
         button.action-btn { padding: 6px 12px; border: none; border-radius: 3px; cursor: pointer; font-weight: bold; color: white; font-size: 12px;}
         button.action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
         .btn-play { background-color: var(--success-color); color: #1e1e1e; }
         .btn-play:not(:disabled):hover { background-color: #72e0c8; }
+        #save-status {
+            color: #8fb7d8;
+            font-size: 11px;
+            font-family: monospace;
+            min-width: 240px;
+        }
+        .track-header-top {
+            display: grid;
+            grid-template-columns: 18px 22px minmax(0, 1fr);
+            align-items: center;
+            gap: 6px;
+            width: 100%;
+            min-width: 0;
+        }
+        .track-reorder-handle {
+            width: 18px;
+            height: 22px;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            border-radius: 4px;
+            background: transparent;
+            color: #7f94a8;
+            cursor: grab;
+            font-size: 12px;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+        .track-reorder-handle:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: #dce8f4;
+        }
+        .track-reorder-handle:active {
+            cursor: grabbing;
+        }
+        .track-object-name-wrap {
+            min-width: 0;
+            flex: 1;
+        }
+        .track-visibility-btn {
+            width: 22px;
+            height: 22px;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #d7dde5;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .track-visibility-btn:hover {
+            background: rgba(255, 255, 255, 0.12);
+            color: white;
+        }
+        .track-visibility-btn.is-hidden {
+            color: #ffb2b2;
+            background: rgba(192, 57, 43, 0.18);
+            border-color: rgba(192, 57, 43, 0.45);
+        }
+        .track-visibility-btn svg {
+            width: 16px;
+            height: 16px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            flex-shrink: 0;
+        }
         
         #timeline-scroll-area {
             flex-grow: 1; overflow-x: auto; overflow-y: auto; position: relative; background: var(--track-bg);
@@ -207,20 +407,61 @@
         }
 
         .track-row { 
-            display: flex; border-bottom: 1px solid #333; height: 34px; align-items: center; 
+            display: flex; border-bottom: 1px solid #333; height: 40px; align-items: stretch; 
             width: max-content; min-width: 100%; position: relative;
+        }
+        .track-row.has-note {
+            height: 52px;
         }
         .track-row:hover { background: #222; }
         .track-row.active-track { background: rgba(0, 122, 204, 0.1); }
 
         .track-header { 
-            width: 160px; padding: 0 10px; box-sizing: border-box; 
+            width: 210px; padding: 4px 10px; box-sizing: border-box; 
             border-right: 2px solid #111; background: var(--track-header-bg); 
             position: sticky; left: 0; z-index: 10; 
             font-weight: bold; color: #aaa; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
             display: flex; align-items: center; height: 100%; cursor: pointer;
         }
         .track-row.active-track .track-header { color: white; border-left: 3px solid var(--accent-color); padding-left: 7px; background: #333;}
+        .track-object-header { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; white-space: normal; }
+        .track-object-header.is-hidden .track-object-name,
+        .track-object-header.is-hidden .track-object-note {
+            opacity: 0.55;
+        }
+        .track-object-name, .track-object-note { width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .track-object-note {
+            width: calc(100% - 52px);
+            margin-left: 52px;
+            line-height: 1.3;
+        }
+        .track-object-note { font-size: 10px; font-weight: normal; color: #8fa2b6; }
+        .track-row.active-track .track-object-note { color: #d4e9ff; }
+        .track-row.track-reorder-source {
+            opacity: 0.55;
+        }
+        .track-row.track-reorder-target-before::before,
+        .track-row.track-reorder-target-after::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 0;
+            border-top: 2px solid #58b1ff;
+            box-shadow: 0 0 0 1px rgba(88, 177, 255, 0.2);
+            pointer-events: none;
+            z-index: 25;
+        }
+        .track-row.track-reorder-target-before::before {
+            top: -1px;
+        }
+        .track-row.track-reorder-target-after::after {
+            bottom: -1px;
+        }
+        body.is-dragging-track-reorder,
+        body.is-dragging-track-reorder * {
+            cursor: grabbing !important;
+        }
         
         .track-frames { position: relative; flex-grow: 1; height: 100%; min-width: 800px; }
         
@@ -257,9 +498,39 @@
 
         /* --- 畫布縮放 --- */
         #canvas-viewport {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            position: absolute; top: 50%; left: 50%;
             transform-origin: center center;
         }
+        #canvas-mask-frame {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            overflow: hidden;
+            z-index: 3;
+            border: 1px solid transparent;
+            box-sizing: border-box;
+        }
+        #canvas-mask-frame.mask-enabled {
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
+            border-color: rgba(255, 255, 255, 0.28);
+            background: rgba(255, 255, 255, 0.02);
+        }
+        #canvas-mask-label {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            padding: 3px 8px;
+            background: rgba(0, 0, 0, 0.65);
+            color: #ddd;
+            border-radius: 999px;
+            font-size: 11px;
+            font-family: monospace;
+            pointer-events: none;
+            display: none;
+            z-index: 4;
+        }
+        #canvas-mask-frame.mask-enabled #canvas-mask-label { display: block; }
         #zoom-controls {
             position: absolute; bottom: 10px; right: 10px; z-index: 100;
             display: flex; align-items: center; gap: 4px;
@@ -273,6 +544,132 @@
         }
         .zoom-btn:hover { background: #777; }
         #zoom-display { font-size: 11px; color: #ddd; min-width: 38px; text-align: center; font-family: monospace; }
+        body.modal-open {
+            overflow: hidden;
+        }
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.66);
+            z-index: 2000;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .modal-overlay[hidden] {
+            display: none;
+        }
+        .modal-card {
+            width: min(640px, 100%);
+            max-height: min(78vh, 720px);
+            display: flex;
+            flex-direction: column;
+            background: #252526;
+            border: 1px solid #3e3e42;
+            border-radius: 10px;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+            overflow: hidden;
+        }
+        .modal-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 16px 18px 12px;
+            border-bottom: 1px solid #343438;
+        }
+        .modal-title {
+            margin: 0;
+            font-size: 18px;
+            text-align: left;
+        }
+        .modal-subtitle {
+            margin: 4px 0 0;
+            color: #9aa7b5;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        .modal-close-btn {
+            border: none;
+            background: transparent;
+            color: #d0d0d0;
+            font-size: 20px;
+            line-height: 1;
+            cursor: pointer;
+            padding: 2px 4px;
+        }
+        .modal-close-btn:hover {
+            color: white;
+        }
+        .project-file-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: #202022;
+        }
+        .project-file-empty {
+            color: #9aa7b5;
+            font-size: 13px;
+            line-height: 1.6;
+            padding: 10px 2px;
+        }
+        .project-file-item {
+            width: 100%;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.03);
+            color: inherit;
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            text-align: left;
+            cursor: pointer;
+        }
+        .project-file-item:hover {
+            border-color: rgba(0, 122, 204, 0.65);
+            background: rgba(0, 122, 204, 0.12);
+        }
+        .project-file-name {
+            font-weight: bold;
+            color: #f3f6fa;
+            word-break: break-all;
+        }
+        .project-file-meta {
+            margin-top: 4px;
+            color: #9aa7b5;
+            font-size: 11px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .project-file-action {
+            color: #7fd2ff;
+            font-size: 12px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        .modal-actions {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 12px 18px 16px;
+            border-top: 1px solid #343438;
+            background: #252526;
+            flex-wrap: wrap;
+        }
+        .modal-actions-left,
+        .modal-actions-right {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
 
     </style>
 </head>
@@ -282,7 +679,10 @@
         <div id="canvas-container">
             <div class="axis-h"></div>
             <div class="axis-v"></div>
-            <div id="canvas-viewport"></div>
+            <div id="canvas-mask-frame">
+                <div id="canvas-mask-label"></div>
+                <div id="canvas-viewport"></div>
+            </div>
             <div id="zoom-controls">
                 <button class="zoom-btn" onclick="zoomOut()" title="縮小 (滾輪↓)">−</button>
                 <span id="zoom-display">100%</span>
@@ -292,97 +692,128 @@
         </div>
 
         <div id="sidebar">
-            <div class="panel-section">
+            <div class="panel-section" data-section-id="layers">
                 <h2>PIXEL ANIMATOR Pro</h2>
-                <h3>1. 圖層面板 (Layers)</h3>
-                <div class="btn-add-obj-wrapper">
-                    <span class="btn-add-obj">+ 新增圖片物件...</span>
-                    <input type="file" id="file-input" accept="image/*">
+                <div class="section-header">
+                    <h3>1. 圖層面板 (Layers)</h3>
+                    <button class="section-toggle" type="button" onclick="toggleSidebarSection('layers')" aria-expanded="true" aria-controls="sidebar-section-layers">收合</button>
                 </div>
-                <div class="btn-add-obj-wrapper">
-                    <button class="btn-add-obj" type="button" onclick="importSpineBundle()">+ 匯入 Spine 資料夾...</button>
-                    <input type="file" id="spine-input" accept=".json,.atlas,.png,.jpg,.jpeg,.webp" webkitdirectory directory multiple>
-                </div>
-                <div id="object-list-container" class="list-container">
-                    <ul id="object-list"></ul>
-                </div>
-                <div id="spine-panel" style="display:none;">
+                <div class="section-body" id="sidebar-section-layers">
+                    <div class="btn-add-obj-wrapper">
+                        <span class="btn-add-obj">+ 新增圖片物件...</span>
+                        <input type="file" id="file-input" accept="image/*">
+                    </div>
+                    <div class="btn-add-obj-wrapper">
+                        <button class="btn-add-obj" type="button" onclick="importSpineBundle()">+ 匯入 Spine 資料夾...</button>
+                        <input type="file" id="spine-input" accept=".json,.atlas,.png,.jpg,.jpeg,.webp" webkitdirectory directory multiple>
+                    </div>
+                    <div id="object-list-container" class="list-container">
+                        <ul id="object-list"></ul>
+                    </div>
                     <div class="control-group">
-                        <label>Spine Animation:</label>
-                        <select id="spine-animation-select"></select>
+                        <label for="layer-note-input">圖層註解：</label>
+                        <textarea id="layer-note-input" rows="3" placeholder="例如：主角立繪、夜景背景、翻頁時使用" disabled></textarea>
+                    </div>
+                    <div id="spine-panel" style="display:none;">
+                        <div class="control-group">
+                            <label>Spine Animation:</label>
+                            <select id="spine-animation-select"></select>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="panel-section">
-                <h3>2. 調整當前姿勢 (屬性編輯)</h3>
-                <div id="props-panel" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 3px; opacity: 0.5; pointer-events: none;">
-                    <div class="control-group"><label>X座標:</label><input type="number" id="prop-x" value="0"></div>
-                    <div class="control-group"><label>Y座標:</label><input type="number" id="prop-y" value="0"></div>
-                    <div class="control-group"><label>旋轉 (deg):</label><input type="number" id="prop-rot" value="0"></div>
-                    <div class="control-group"><label>縮放 (Scale):</label><input type="number" id="prop-scale" value="1" step="0.1"></div>
-                    <div class="control-group" style="grid-column: 1 / span 2;"><label>透明度 (Opacity):</label><input type="number" id="prop-opacity" value="1" step="0.1" max="1"></div>
+            <div class="panel-section" data-section-id="properties">
+                <div class="section-header">
+                    <h3>2. 調整當前姿勢 (屬性編輯)</h3>
+                    <button class="section-toggle" type="button" onclick="toggleSidebarSection('properties')" aria-expanded="true" aria-controls="sidebar-section-properties">收合</button>
                 </div>
-                <div id="tint-panel" style="margin-top: 6px; opacity: 0.5; pointer-events: none; display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
-                    <div class="control-group" style="grid-column: 1 / span 2;">
-                        <label>Tint:</label>
-                        <input type="color" id="prop-tint" value="#ffffff">
-                    </div>
+                <div class="section-body" id="sidebar-section-properties">
                     <div class="control-group">
-                        <label>Tint Strength:</label>
-                        <input type="number" id="prop-tint-strength" value="100" min="0" max="100" step="1">
+                        <label>輸出遮罩：</label>
+                        <div class="inline-action-row">
+                            <input type="number" id="output-mask-width" min="1" placeholder="Width">
+                            <input type="number" id="output-mask-height" min="1" placeholder="Height">
+                            <button type="button" onclick="applyOutputMask()">套用</button>
+                            <button type="button" onclick="clearOutputMask()">清除</button>
+                        </div>
+                        <div id="output-mask-status"></div>
                     </div>
-                    <div class="control-group">
-                        <label>Hue:</label>
-                        <input type="number" id="prop-hue" value="0" min="-180" max="180" step="1">
+                    <div id="props-panel" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 3px; opacity: 0.5; pointer-events: none;">
+                        <div class="control-group"><label>X座標:</label><input type="number" id="prop-x" value="0"></div>
+                        <div class="control-group"><label>Y座標:</label><input type="number" id="prop-y" value="0"></div>
+                        <div class="control-group"><label>旋轉 (deg):</label><input type="number" id="prop-rot" value="0"></div>
+                        <div class="control-group"><label>縮放 (Scale):</label><input type="number" id="prop-scale" value="1" step="0.1"></div>
+                        <div class="control-group" style="grid-column: 1 / span 2;"><label>透明度 (Opacity):</label><input type="number" id="prop-opacity" value="1" step="0.1" max="1"></div>
                     </div>
-                    <div class="control-group">
-                        <label>Brightness:</label>
-                        <input type="number" id="prop-brightness" value="100" min="0" max="300" step="1">
-                    </div>
-                    <div class="control-group">
-                        <label>Contrast:</label>
-                        <input type="number" id="prop-contrast" value="100" min="0" max="300" step="1">
-                    </div>
-                    <div class="control-group" style="grid-column: 1 / span 2;">
-                        <label>Blend Mode:</label>
-                        <select id="prop-blend-mode">
-                            <option value="normal">Normal</option>
-                            <option value="multiply">Multiply</option>
-                            <option value="screen">Screen</option>
-                            <option value="overlay">Overlay</option>
-                            <option value="darken">Darken</option>
-                            <option value="lighten">Lighten</option>
-                            <option value="color-dodge">Color Dodge</option>
-                            <option value="color-burn">Color Burn</option>
-                            <option value="hard-light">Hard Light</option>
-                            <option value="soft-light">Soft Light</option>
-                            <option value="difference">Difference</option>
-                            <option value="exclusion">Exclusion</option>
-                        </select>
+                    <div id="tint-panel" style="margin-top: 6px; opacity: 0.5; pointer-events: none; display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                        <div class="control-group" style="grid-column: 1 / span 2;">
+                            <label>Tint:</label>
+                            <input type="color" id="prop-tint" value="#ffffff">
+                        </div>
+                        <div class="control-group">
+                            <label>Tint Strength:</label>
+                            <input type="number" id="prop-tint-strength" value="100" min="0" max="100" step="1">
+                        </div>
+                        <div class="control-group">
+                            <label>Hue:</label>
+                            <input type="number" id="prop-hue" value="0" min="-180" max="180" step="1">
+                        </div>
+                        <div class="control-group">
+                            <label>Brightness:</label>
+                            <input type="number" id="prop-brightness" value="100" min="0" max="300" step="1">
+                        </div>
+                        <div class="control-group">
+                            <label>Contrast:</label>
+                            <input type="number" id="prop-contrast" value="100" min="0" max="300" step="1">
+                        </div>
+                        <div class="control-group" style="grid-column: 1 / span 2;">
+                            <label>Blend Mode:</label>
+                            <select id="prop-blend-mode">
+                                <option value="normal">Normal</option>
+                                <option value="multiply">Multiply</option>
+                                <option value="screen">Screen</option>
+                                <option value="overlay">Overlay</option>
+                                <option value="darken">Darken</option>
+                                <option value="lighten">Lighten</option>
+                                <option value="color-dodge">Color Dodge</option>
+                                <option value="color-burn">Color Burn</option>
+                                <option value="hard-light">Hard Light</option>
+                                <option value="soft-light">Soft Light</option>
+                                <option value="difference">Difference</option>
+                                <option value="exclusion">Exclusion</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div class="panel-section snapshot-section">
-                <h3>3. 影格快門 (Snapshot)</h3>
-                <div class="control-group">
-                    <label>與上一個影格的間隔 (秒):</label>
-                    <input type="number" id="prop-interval" value="0.5" step="0.1" min="0">
+            <div class="panel-section snapshot-section" data-section-id="snapshot">
+                <div class="section-header">
+                    <h3>3. 影格快門 (Snapshot)</h3>
+                    <button class="section-toggle" type="button" onclick="toggleSidebarSection('snapshot')" aria-expanded="true" aria-controls="sidebar-section-snapshot">收合</button>
                 </div>
-                <button class="btn-snapshot" id="btn-snapshot" onclick="handleSnapshotAction()" disabled>📸 記錄為新影格</button>
-                <button class="btn-delete-kf" id="btn-delete-kf" onclick="deleteSelectedKeyframe()">🗑 刪除此影格</button>
-                
-                <div class="keyframe-clipboard-row">
-                    <button type="button" id="btn-copy-kf" onclick="copySelectedKeyframes()" disabled>Copy KF</button>
-                    <button type="button" id="btn-paste-kf" onclick="pasteCopiedKeyframes()" disabled>Paste KF</button>
-                </div>
-                <div id="update-hint" style="font-size:10px; color:#2980b9; text-align:center; display:none; margin-top:6px;">
-                    正在編輯現有影格... 按更新儲存，按畫布空白處取消
+                <div class="section-body" id="sidebar-section-snapshot">
+                    <div class="control-group">
+                        <label>與上一個影格的間隔 (秒):</label>
+                        <input type="number" id="prop-interval" value="0.5" step="0.1" min="0">
+                    </div>
+                    <button class="btn-snapshot" id="btn-snapshot" onclick="handleSnapshotAction()" disabled>📸 記錄為新影格</button>
+                    <button class="btn-delete-kf" id="btn-delete-kf" onclick="deleteSelectedKeyframe()">🗑 刪除此影格</button>
+                    
+                    <div class="keyframe-clipboard-row">
+                        <button type="button" id="btn-copy-kf" onclick="copySelectedKeyframes()" disabled>Copy KF</button>
+                        <button type="button" id="btn-paste-kf" onclick="pasteCopiedKeyframes()" disabled>Paste KF</button>
+                    </div>
+                    <div id="update-hint" style="font-size:10px; color:#2980b9; text-align:center; display:none; margin-top:6px;">
+                        正在編輯現有影格... 按更新儲存，按畫布空白處取消
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <div id="timeline-resizer" title="上下拖曳調整影格區高度"></div>
 
     <div id="bottom-panel">
         <div id="timeline-toolbar">
@@ -427,13 +858,17 @@
         let selectedKeyframeIndex = null; 
         let playState = { isPlaying: false, startTime: 0, animationFrameId: null, totalDuration: 0, currentTime: 0 };
         let keyframeClipboard = null;
+        let outputMask = { enabled: false, width: 1920, height: 1080 };
 
         let selectedKeyframes = []; // [{ objId, kfIndex }] — 複選影格
         let kfDrag = { isDragging: false, hasMoved: false, objId: null, kfIndex: null, startX: 0, startTime: 0, nodeEl: null, dragTargets: [] };
         let marqueeState = { isSelecting: false, hasMoved: false, additive: false, startX: 0, startY: 0, currentX: 0, currentY: 0, baseSelection: [] };
         let scrubState = { isScrubbing: false };
+        let trackReorderDrag = { isDragging: false, hasMoved: false, objId: null, startY: 0, insertionIndex: -1 };
         let drag = { isDragging: false, sx: 0, sy: 0, objX: 0, objY: 0 };
+        let timelinePanelResize = { isDragging: false, startY: 0, startHeight: 250 };
         let canvasZoom = 1.0;
+        let canvasViewportBaseScale = 1.0;
 
         const ZOOM_MIN = 0.1;
         const ZOOM_MAX = 5.0;
@@ -444,14 +879,17 @@
         const DEFAULT_BRIGHTNESS = 100;
         const DEFAULT_CONTRAST = 100;
         const DEFAULT_BLEND_MODE = 'normal';
+        const DEFAULT_BLOCK_SIZE = 160;
+        const DEFAULT_BLOCK_COLOR = '#ffffff';
         const DEFAULT_POSE = {
-            x: 0, y: 0, rot: 0, scale: 1, opacity: 1,
+            x: 0, y: 0, rot: 0, scale: 1, opacity: 1, visible: true,
             tint: DEFAULT_TINT, tintStrength: DEFAULT_TINT_STRENGTH,
             hue: DEFAULT_HUE, brightness: DEFAULT_BRIGHTNESS, contrast: DEFAULT_CONTRAST,
             blendMode: DEFAULT_BLEND_MODE
         };
         const DEFAULT_SPINE_SIZE = 320;
         const IMAGE_TYPE = 'image';
+        const BLOCK_TYPE = 'block';
         const SPINE_TYPE = 'spine';
         const spineRuntimeState = { loadedVersion: null, loadingVersion: null, promise: null };
         const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -459,17 +897,30 @@
         const BASE_PIXELS_PER_SEC = 150;
         const TIMELINE_ZOOM_MIN = 0.25;
         const TIMELINE_ZOOM_MAX = 4;
+        const BOTTOM_PANEL_MIN_HEIGHT = 180;
+        const WORKSPACE_MIN_HEIGHT = 220;
+        const TIMELINE_RESIZER_HEIGHT = 10;
         let timelineZoom = 1;
-        const HEADER_WIDTH = 160;
+        const HEADER_WIDTH = 210;
+        const SIDEBAR_SECTION_STORAGE_KEY = 'cutscene-editor.sidebar-sections';
+        const SIDEBAR_SUBSECTION_STORAGE_KEY = 'cutscene-editor.sidebar-subsections';
+        const BOTTOM_PANEL_HEIGHT_STORAGE_KEY = 'cutscene-editor.bottom-panel-height';
 
+        const workspace = document.getElementById('workspace');
         const canvas = document.getElementById('canvas-container');
+        const canvasMaskFrame = document.getElementById('canvas-mask-frame');
+        const canvasMaskLabel = document.getElementById('canvas-mask-label');
         const canvasViewport = document.getElementById('canvas-viewport');
         const zoomDisplay = document.getElementById('zoom-display');
         const fileInput = document.getElementById('file-input');
         const spineInput = document.getElementById('spine-input');
         const objectListEl = document.getElementById('object-list');
+        const layerNoteInput = document.getElementById('layer-note-input');
         const propsPanel = document.getElementById('props-panel');
         const tintPanel = document.getElementById('tint-panel');
+        const outputMaskWidthInput = document.getElementById('output-mask-width');
+        const outputMaskHeightInput = document.getElementById('output-mask-height');
+        const outputMaskStatus = document.getElementById('output-mask-status');
         const spinePanel = document.getElementById('spine-panel');
         const spineAnimationSelect = document.getElementById('spine-animation-select');
         const btnSnapshot = document.getElementById('btn-snapshot');
@@ -481,7 +932,10 @@
         const btnStop = document.getElementById('btn-stop');
         const btnPrevKf = document.getElementById('btn-prev-kf');
         const btnNextKf = document.getElementById('btn-next-kf');
+        const jsonImportInput = document.getElementById('json-import-input');
         const intervalInput = document.getElementById('prop-interval');
+        const timelineResizer = document.getElementById('timeline-resizer');
+        const bottomPanel = document.getElementById('bottom-panel');
         const tracksContainer = document.getElementById('tracks-container');
         const timelineScrollArea = document.getElementById('timeline-scroll-area');
         const timelineSelectionBox = document.getElementById('timeline-selection-box');
@@ -492,6 +946,27 @@
         const multiSelectDisplay = document.getElementById('multi-select-display');
         const timelineZoomSlider = document.getElementById('timeline-zoom-slider');
         const timelineZoomDisplay = document.getElementById('timeline-zoom-display');
+        let objectSettingsPanel = null;
+        let blockPanel = null;
+        let blockSizeInput = null;
+        let blockColorInput = null;
+        let saveStatusEl = null;
+        let projectFileModal = null;
+        let projectFileModalSubtitle = null;
+        let projectFileListEl = null;
+        let projectFileModalOpen = false;
+        let saveDirectoryHandle = null;
+        let currentProjectFileHandle = null;
+        let currentProjectFileName = '';
+        let autoBackupTimerId = null;
+        let lastAutoBackupSnapshot = '';
+        const FILE_SYSTEM_DB_NAME = 'cutscene-editor-file-system';
+        const FILE_SYSTEM_STORE_NAME = 'handles';
+        const SAVE_DIRECTORY_HANDLE_KEY = 'save-directory';
+        const CURRENT_PROJECT_HANDLE_KEY = 'current-project-file';
+        const AUTO_BACKUP_INTERVAL_MS = 5 * 60 * 1000;
+        const AUTO_BACKUP_FOLDER_NAME = 'backups';
+        const MAX_AUTO_BACKUPS = 5;
 
         const inputs = {
             x: document.getElementById('prop-x'), y: document.getElementById('prop-y'),
@@ -505,7 +980,7 @@
             blendMode: document.getElementById('prop-blend-mode')
         };
 
-        const escapeHTML = (str) => str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+        const escapeHTML = (str) => String(str ?? '').replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
         const getNum = (val, defaultVal) => isNaN(parseFloat(val)) ? defaultVal : parseFloat(val);
         const normalizeTintHex = (tint) => {
             const value = String(tint || DEFAULT_TINT).trim();
@@ -551,12 +1026,17 @@
             contrast: clamp(getNum(pose.contrast, DEFAULT_CONTRAST), 0, 300),
             blendMode: normalizeBlendMode(pose.blendMode)
         });
+        const normalizeBlockData = (blockData = {}) => ({
+            size: clamp(getNum(blockData.size, DEFAULT_BLOCK_SIZE), 4, 4096),
+            color: normalizeTintHex(blockData.color || DEFAULT_BLOCK_COLOR)
+        });
         const getInputPoseValues = () => ({
             x: getNum(inputs.x.value, 0),
             y: getNum(inputs.y.value, 0),
             rot: getNum(inputs.rot.value, 0),
             scale: getNum(inputs.scale.value, 1),
             opacity: getNum(inputs.opacity.value, 1),
+            visible: getCurrentVisibleValue(),
             ...normalizePoseEffects({
                 tint: inputs.tint.value,
                 tintStrength: inputs.tintStrength.value,
@@ -568,12 +1048,743 @@
         });
         const getSelectedObjectData = () => animObjects.find(obj => obj.id === selectedObjectId);
         const clonePose = (pose = DEFAULT_POSE) => ({
-            x: pose.x, y: pose.y, rot: pose.rot, scale: pose.scale, opacity: pose.opacity,
+            x: pose.x, y: pose.y, rot: pose.rot, scale: pose.scale, opacity: pose.opacity, visible: pose.visible !== false,
             ...normalizePoseEffects(pose)
         });
         const normalizeKeyframe = (kf) => ({ ...clonePose(kf || DEFAULT_POSE), time: getNum(kf?.time, 0) });
         const normalizePath = (path) => String(path || '').replace(/\\/g, '/');
         const stripExtension = (name) => String(name || '').replace(/\.[^.]+$/, '');
+        const getFileBaseName = (name) => String(name || '').split(/[\\/]/).pop() || '';
+        const buildDefaultAssetPath = (name) => {
+            const baseName = getFileBaseName(name);
+            return baseName ? normalizePath(`assets/${baseName}`) : '';
+        };
+        const withCacheBuster = (src) => src ? `${src}${src.includes('?') ? '&' : '?'}v=${Date.now()}` : src;
+        const formatBytes = (size) => {
+            if (!Number.isFinite(size) || size < 1024) return `${Math.max(0, Math.round(size || 0))} B`;
+            if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+            return `${(size / (1024 * 1024)).toFixed(2)} MB`;
+        };
+        const formatLocalDateTime = (timestamp) => {
+            if (!Number.isFinite(timestamp)) return '時間未知';
+            return new Date(timestamp).toLocaleString('zh-TW', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        };
+        const formatTimestampForFileName = (date = new Date()) => {
+            const pad = (value) => String(value).padStart(2, '0');
+            return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+        };
+        const sanitizeProjectFileName = (name) => {
+            const trimmed = String(name || '').trim().replace(/[<>:"/\\|?*\x00-\x1F]/g, '_');
+            if (!trimmed) return '';
+            return /\.json$/i.test(trimmed) ? trimmed : `${trimmed}.json`;
+        };
+        const sanitizeProjectStem = (name) => {
+            const stem = stripExtension(String(name || '').trim())
+                .replace(/[^a-z0-9\-_]+/gi, '_')
+                .replace(/^_+|_+$/g, '');
+            return stem || 'animation_project';
+        };
+        const createProjectToolbarButton = (label, className, onClick) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = `action-btn ${className}`;
+            button.textContent = label;
+            button.addEventListener('click', onClick);
+            return button;
+        };
+        const createProjectModalButton = (label, className, onClick) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = `action-btn ${className}`;
+            button.textContent = label;
+            button.addEventListener('click', onClick);
+            return button;
+        };
+        const isObjectTrackVisible = (obj) => obj?.trackVisible !== false;
+        const isObjectCurrentlyVisible = (obj) => isObjectTrackVisible(obj) && obj?.currentPose?.visible !== false;
+        const getCurrentVisibleValue = () => {
+            const targetObj = getSelectedObjectData();
+            return targetObj ? (targetObj.currentPose?.visible !== false) : true;
+        };
+        const getTrackVisibilityIcon = (isVisible) => isVisible
+            ? `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"></path><circle cx="12" cy="12" r="3"></circle></svg>`
+            : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18"></path><path d="M10.6 10.7a3 3 0 0 0 4 4"></path><path d="M9.4 5.5A11.4 11.4 0 0 1 12 5c6.5 0 10 7 10 7a18.8 18.8 0 0 1-4 4.9"></path><path d="M6.6 6.7C4 8.5 2 12 2 12s3.5 6 10 6a10.8 10.8 0 0 0 2.5-.3"></path></svg>`;
+        const toggleTrackObjectVisibility = (objId) => {
+            const targetObj = animObjects.find(obj => obj.id === objId);
+            if (!targetObj) return;
+            if (selectedObjectId !== objId) {
+                selectObject(objId);
+            }
+            const nextVisible = !isObjectTrackVisible(targetObj);
+            targetObj.trackVisible = nextVisible;
+            if (targetObj.domWrapper?.dataset) {
+                targetObj.domWrapper.dataset.trackVisible = nextVisible ? 'true' : 'false';
+            }
+            applyPoseToDOM(targetObj.domWrapper, targetObj.currentPose);
+            if (selectedObjectId === objId) {
+                syncInputsWithState(targetObj.currentPose);
+            }
+            updateGlobalTimeline();
+        };
+        const refreshTrackVisibilityIndicators = () => {
+            animObjects.forEach((obj) => {
+                const isVisible = isObjectTrackVisible(obj);
+                const header = tracksContainer.querySelector(`.track-object-header[data-obj-id="${obj.id}"]`);
+                const button = tracksContainer.querySelector(`.track-visibility-btn[data-obj-id="${obj.id}"]`);
+                header?.classList.toggle('is-hidden', !isVisible);
+                if (button) {
+                    button.classList.toggle('is-hidden', !isVisible);
+                    button.title = isVisible ? 'Hide object' : 'Show object';
+                    button.innerHTML = getTrackVisibilityIcon(isVisible);
+                }
+            });
+        };
+        /*
+        const setupProjectFileToolbar = () => {
+            const legacyLoadButton = jsonImportInput?.nextElementSibling;
+            const legacySaveButton = legacyLoadButton?.nextElementSibling;
+            const toolbar = jsonImportInput?.parentElement;
+            if (!toolbar || !legacyLoadButton || !legacySaveButton) return;
+
+            legacyLoadButton.textContent = '讀取存檔';
+            legacyLoadButton.type = 'button';
+            legacyLoadButton.onclick = importProjectJSON;
+
+            legacySaveButton.textContent = '直接存檔';
+            legacySaveButton.type = 'button';
+            legacySaveButton.onclick = saveProjectDirect;
+
+            const saveAsButton = createProjectToolbarButton('另存新檔', 'btn-save-secondary', saveProjectAs);
+            const chooseFolderButton = createProjectToolbarButton('設定存檔資料夾', 'btn-import', () => chooseSaveDirectory());
+            saveStatusEl = document.createElement('span');
+            saveStatusEl.id = 'save-status';
+            saveStatusEl.textContent = '存檔資料夾未設定';
+
+            toolbar.insertBefore(saveAsButton, legacySaveButton.nextSibling);
+            toolbar.insertBefore(chooseFolderButton, saveAsButton.nextSibling);
+            toolbar.insertBefore(saveStatusEl, chooseFolderButton.nextSibling);
+        };
+        const buildProjectFileModal = () => {
+            const overlay = document.createElement('div');
+            overlay.id = 'project-file-modal';
+            overlay.className = 'modal-overlay';
+            overlay.hidden = true;
+
+            const card = document.createElement('div');
+            card.className = 'modal-card';
+            card.setAttribute('role', 'dialog');
+            card.setAttribute('aria-modal', 'true');
+            card.setAttribute('aria-labelledby', 'project-file-modal-title');
+
+            const header = document.createElement('div');
+            header.className = 'modal-header';
+
+            const titleWrap = document.createElement('div');
+            const title = document.createElement('h2');
+            title.className = 'modal-title';
+            title.id = 'project-file-modal-title';
+            title.textContent = '讀取存檔';
+            projectFileModalSubtitle = document.createElement('p');
+            projectFileModalSubtitle.className = 'modal-subtitle';
+            projectFileModalSubtitle.textContent = '從 save 資料夾選一個 JSON 工程檔。';
+            titleWrap.appendChild(title);
+            titleWrap.appendChild(projectFileModalSubtitle);
+
+            const closeBtn = document.createElement('button');
+            closeBtn.type = 'button';
+            closeBtn.className = 'modal-close-btn';
+            closeBtn.setAttribute('aria-label', '關閉');
+            closeBtn.textContent = '×';
+            closeBtn.addEventListener('click', closeProjectFileModal);
+
+            header.appendChild(titleWrap);
+            header.appendChild(closeBtn);
+
+            projectFileListEl = document.createElement('div');
+            projectFileListEl.id = 'project-file-list';
+            projectFileListEl.className = 'project-file-list';
+
+            const actions = document.createElement('div');
+            actions.className = 'modal-actions';
+            const leftActions = document.createElement('div');
+            leftActions.className = 'modal-actions-left';
+            leftActions.appendChild(createProjectModalButton('重新整理', 'btn-import', refreshProjectFileList));
+            leftActions.appendChild(createProjectModalButton('切換資料夾', 'btn-save-secondary', () => chooseSaveDirectory(true)));
+            const rightActions = document.createElement('div');
+            rightActions.className = 'modal-actions-right';
+            rightActions.appendChild(createProjectModalButton('取消', 'btn-import', closeProjectFileModal));
+            actions.appendChild(leftActions);
+            actions.appendChild(rightActions);
+
+            card.appendChild(header);
+            card.appendChild(projectFileListEl);
+            card.appendChild(actions);
+            overlay.appendChild(card);
+
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) closeProjectFileModal();
+            });
+
+            document.body.appendChild(overlay);
+            projectFileModal = overlay;
+        };
+        const updateSaveStatus = (extra = '') => {
+            if (!saveStatusEl) return;
+            const folderName = saveDirectoryHandle?.name || '未設定';
+            const fileLabel = currentProjectFileName || '未命名';
+            const suffix = extra ? ` | ${extra}` : '';
+            saveStatusEl.textContent = `save: ${folderName} | file: ${fileLabel}${suffix}`;
+        };
+        */
+        const setupProjectFileToolbar = () => {
+            const legacyLoadButton = jsonImportInput?.nextElementSibling;
+            const legacySaveButton = legacyLoadButton?.nextElementSibling;
+            const toolbar = jsonImportInput?.parentElement;
+            if (!toolbar || !legacyLoadButton || !legacySaveButton) return;
+
+            legacyLoadButton.textContent = 'Load Project';
+            legacyLoadButton.type = 'button';
+            legacyLoadButton.onclick = importProjectJSON;
+
+            legacySaveButton.textContent = 'Save';
+            legacySaveButton.type = 'button';
+            legacySaveButton.onclick = saveProjectDirect;
+
+            const saveAsButton = createProjectToolbarButton('Save As', 'btn-save-secondary', saveProjectAs);
+            const chooseFolderButton = createProjectToolbarButton('Set Save Folder', 'btn-import', () => chooseSaveDirectory());
+            saveStatusEl = document.createElement('span');
+            saveStatusEl.id = 'save-status';
+            saveStatusEl.textContent = 'Save folder not set';
+
+            toolbar.insertBefore(saveAsButton, legacySaveButton.nextSibling);
+            toolbar.insertBefore(chooseFolderButton, saveAsButton.nextSibling);
+            toolbar.insertBefore(saveStatusEl, chooseFolderButton.nextSibling);
+        };
+        const buildProjectFileModal = () => {
+            const overlay = document.createElement('div');
+            overlay.id = 'project-file-modal';
+            overlay.className = 'modal-overlay';
+            overlay.hidden = true;
+
+            const card = document.createElement('div');
+            card.className = 'modal-card';
+            card.setAttribute('role', 'dialog');
+            card.setAttribute('aria-modal', 'true');
+            card.setAttribute('aria-labelledby', 'project-file-modal-title');
+
+            const header = document.createElement('div');
+            header.className = 'modal-header';
+
+            const titleWrap = document.createElement('div');
+            const title = document.createElement('h2');
+            title.className = 'modal-title';
+            title.id = 'project-file-modal-title';
+            title.textContent = 'Load Project';
+            projectFileModalSubtitle = document.createElement('p');
+            projectFileModalSubtitle.className = 'modal-subtitle';
+            projectFileModalSubtitle.textContent = 'Select a JSON project file from the save folder.';
+            titleWrap.appendChild(title);
+            titleWrap.appendChild(projectFileModalSubtitle);
+
+            const closeBtn = document.createElement('button');
+            closeBtn.type = 'button';
+            closeBtn.className = 'modal-close-btn';
+            closeBtn.setAttribute('aria-label', 'Close');
+            closeBtn.textContent = 'x';
+            closeBtn.addEventListener('click', closeProjectFileModal);
+
+            header.appendChild(titleWrap);
+            header.appendChild(closeBtn);
+
+            projectFileListEl = document.createElement('div');
+            projectFileListEl.id = 'project-file-list';
+            projectFileListEl.className = 'project-file-list';
+
+            const actions = document.createElement('div');
+            actions.className = 'modal-actions';
+            const leftActions = document.createElement('div');
+            leftActions.className = 'modal-actions-left';
+            leftActions.appendChild(createProjectModalButton('Refresh', 'btn-import', refreshProjectFileList));
+            leftActions.appendChild(createProjectModalButton('Switch Folder', 'btn-save-secondary', () => chooseSaveDirectory(true)));
+            const rightActions = document.createElement('div');
+            rightActions.className = 'modal-actions-right';
+            rightActions.appendChild(createProjectModalButton('Cancel', 'btn-import', closeProjectFileModal));
+            actions.appendChild(leftActions);
+            actions.appendChild(rightActions);
+
+            card.appendChild(header);
+            card.appendChild(projectFileListEl);
+            card.appendChild(actions);
+            overlay.appendChild(card);
+
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) closeProjectFileModal();
+            });
+
+            document.body.appendChild(overlay);
+            projectFileModal = overlay;
+        };
+        const updateSaveStatus = (extra = '') => {
+            if (!saveStatusEl) return;
+            const folderName = saveDirectoryHandle?.name || 'unset';
+            const fileLabel = currentProjectFileName || 'untitled';
+            const suffix = extra ? ` | ${extra}` : '';
+            saveStatusEl.textContent = `save: ${folderName} | file: ${fileLabel}${suffix}`;
+        };
+        const openFileSystemDB = () => new Promise((resolve, reject) => {
+            if (!('indexedDB' in window)) {
+                resolve(null);
+                return;
+            }
+            const request = indexedDB.open(FILE_SYSTEM_DB_NAME, 1);
+            request.onupgradeneeded = () => {
+                const db = request.result;
+                if (!db.objectStoreNames.contains(FILE_SYSTEM_STORE_NAME)) {
+                    db.createObjectStore(FILE_SYSTEM_STORE_NAME);
+                }
+            };
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+        const readStoredHandle = async (key) => {
+            try {
+                const db = await openFileSystemDB();
+                if (!db) return null;
+                return await new Promise((resolve, reject) => {
+                    const tx = db.transaction(FILE_SYSTEM_STORE_NAME, 'readonly');
+                    const store = tx.objectStore(FILE_SYSTEM_STORE_NAME);
+                    const request = store.get(key);
+                    request.onsuccess = () => resolve(request.result || null);
+                    request.onerror = () => reject(request.error);
+                });
+            } catch (err) {
+                console.warn('Failed to restore stored handle:', err);
+                return null;
+            }
+        };
+        const writeStoredHandle = async (key, handle) => {
+            try {
+                const db = await openFileSystemDB();
+                if (!db) return;
+                await new Promise((resolve, reject) => {
+                    const tx = db.transaction(FILE_SYSTEM_STORE_NAME, 'readwrite');
+                    tx.oncomplete = () => resolve();
+                    tx.onerror = () => reject(tx.error);
+                    tx.objectStore(FILE_SYSTEM_STORE_NAME).put(handle, key);
+                });
+            } catch (err) {
+                console.warn('Failed to persist stored handle:', err);
+            }
+        };
+        const deleteStoredHandle = async (key) => {
+            try {
+                const db = await openFileSystemDB();
+                if (!db) return;
+                await new Promise((resolve, reject) => {
+                    const tx = db.transaction(FILE_SYSTEM_STORE_NAME, 'readwrite');
+                    tx.oncomplete = () => resolve();
+                    tx.onerror = () => reject(tx.error);
+                    tx.objectStore(FILE_SYSTEM_STORE_NAME).delete(key);
+                });
+            } catch (err) {
+                console.warn('Failed to clear stored handle:', err);
+            }
+        };
+        const queryHandlePermission = async (handle, mode = 'read') => {
+            if (!handle?.queryPermission) return 'granted';
+            try {
+                return await handle.queryPermission({ mode });
+            } catch (err) {
+                return 'prompt';
+            }
+        };
+        const requestHandlePermission = async (handle, mode = 'read') => {
+            if (!handle?.requestPermission) return 'granted';
+            try {
+                return await handle.requestPermission({ mode });
+            } catch (err) {
+                return 'denied';
+            }
+        };
+        const ensureHandlePermission = async (handle, mode = 'read', promptUser = false) => {
+            if (!handle) return false;
+            const currentPermission = await queryHandlePermission(handle, mode);
+            if (currentPermission === 'granted') return true;
+            if (!promptUser) return false;
+            return (await requestHandlePermission(handle, mode)) === 'granted';
+        };
+        const setCurrentProjectHandle = async (fileHandle = null, fileName = '') => {
+            currentProjectFileHandle = fileHandle || null;
+            currentProjectFileName = fileHandle?.name || fileName || '';
+            if (currentProjectFileHandle) await writeStoredHandle(CURRENT_PROJECT_HANDLE_KEY, currentProjectFileHandle);
+            else await deleteStoredHandle(CURRENT_PROJECT_HANDLE_KEY);
+            updateSaveStatus();
+        };
+        /*
+        const ensureSaveDirectoryHandle = async ({ promptUser = false, writeAccess = false, forcePick = false } = {}) => {
+            const mode = writeAccess ? 'readwrite' : 'read';
+            if (!window.showDirectoryPicker) return null;
+
+            if (!saveDirectoryHandle && !forcePick) {
+                saveDirectoryHandle = await readStoredHandle(SAVE_DIRECTORY_HANDLE_KEY);
+            }
+
+            if (forcePick) {
+                saveDirectoryHandle = null;
+            }
+
+            if (saveDirectoryHandle) {
+                const allowed = await ensureHandlePermission(saveDirectoryHandle, mode, promptUser);
+                if (allowed) {
+                    updateSaveStatus();
+                    return saveDirectoryHandle;
+                }
+            }
+
+            if (!promptUser) return null;
+
+            try {
+                const pickedHandle = await window.showDirectoryPicker({
+                    id: 'cutscene-editor-save-folder',
+                    mode
+                });
+                saveDirectoryHandle = pickedHandle;
+                await writeStoredHandle(SAVE_DIRECTORY_HANDLE_KEY, pickedHandle);
+                updateSaveStatus('資料夾已連線');
+                return pickedHandle;
+            } catch (err) {
+                if (err?.name !== 'AbortError') {
+                    alert(`無法設定存檔資料夾: ${err.message}`);
+                }
+                return null;
+            }
+        };
+        */
+        const ensureSaveDirectoryHandle = async ({ promptUser = false, writeAccess = false, forcePick = false } = {}) => {
+            const mode = writeAccess ? 'readwrite' : 'read';
+            if (!window.showDirectoryPicker) return null;
+
+            if (!saveDirectoryHandle && !forcePick) {
+                saveDirectoryHandle = await readStoredHandle(SAVE_DIRECTORY_HANDLE_KEY);
+            }
+
+            if (forcePick) {
+                saveDirectoryHandle = null;
+            }
+
+            if (saveDirectoryHandle) {
+                const allowed = await ensureHandlePermission(saveDirectoryHandle, mode, promptUser);
+                if (allowed) {
+                    updateSaveStatus();
+                    return saveDirectoryHandle;
+                }
+            }
+
+            if (!promptUser) return null;
+
+            try {
+                const pickedHandle = await window.showDirectoryPicker({
+                    id: 'cutscene-editor-save-folder',
+                    mode
+                });
+                saveDirectoryHandle = pickedHandle;
+                await writeStoredHandle(SAVE_DIRECTORY_HANDLE_KEY, pickedHandle);
+                updateSaveStatus('folder connected');
+                return pickedHandle;
+            } catch (err) {
+                if (err?.name !== 'AbortError') {
+                    alert(`Failed to set save folder: ${err.message}`);
+                }
+                return null;
+            }
+        };
+        const chooseSaveDirectory = async (refreshAfterPick = false) => {
+            const directoryHandle = await ensureSaveDirectoryHandle({ promptUser: true, writeAccess: true, forcePick: true });
+            if (!directoryHandle) return null;
+            await setCurrentProjectHandle(null, currentProjectFileName);
+            if (refreshAfterPick && projectFileModalOpen) {
+                await refreshProjectFileList();
+            }
+            return directoryHandle;
+        };
+        const openProjectFileModal = () => {
+            if (!projectFileModal) return;
+            projectFileModal.hidden = false;
+            projectFileModalOpen = true;
+            document.body.classList.add('modal-open');
+        };
+        const closeProjectFileModal = () => {
+            if (!projectFileModal) return;
+            projectFileModal.hidden = true;
+            projectFileModalOpen = false;
+            document.body.classList.remove('modal-open');
+        };
+        const renderProjectFileListMessage = (message) => {
+            if (!projectFileListEl) return;
+            projectFileListEl.innerHTML = '';
+            const empty = document.createElement('div');
+            empty.className = 'project-file-empty';
+            empty.textContent = message;
+            projectFileListEl.appendChild(empty);
+        };
+        const collectProjectFiles = async (directoryHandle) => {
+            const entries = [];
+            for await (const entry of directoryHandle.values()) {
+                if (entry.kind !== 'file' || !entry.name.toLowerCase().endsWith('.json')) continue;
+                const file = await entry.getFile();
+                entries.push({
+                    name: entry.name,
+                    handle: entry,
+                    lastModified: file.lastModified,
+                    size: file.size
+                });
+            }
+            return entries.sort((a, b) => b.lastModified - a.lastModified);
+        };
+        /*
+        const refreshProjectFileList = async () => {
+            if (!window.showDirectoryPicker) {
+                closeProjectFileModal();
+                jsonImportInput?.click();
+                return;
+            }
+
+            const directoryHandle = await ensureSaveDirectoryHandle({ promptUser: true, writeAccess: false });
+            if (!directoryHandle) return;
+
+            openProjectFileModal();
+            renderProjectFileListMessage('讀取 save 資料夾中...');
+            projectFileModalSubtitle.textContent = `目前資料夾：${directoryHandle.name}`;
+
+            try {
+                const files = await collectProjectFiles(directoryHandle);
+                if (files.length === 0) {
+                    renderProjectFileListMessage('目前沒有可讀取的 JSON 工程檔。');
+                    return;
+                }
+
+                projectFileListEl.innerHTML = '';
+                files.forEach((item) => {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'project-file-item';
+                    button.addEventListener('click', async () => {
+                        await loadProjectFromHandle(item.handle);
+                    });
+
+                    const info = document.createElement('div');
+                    const nameEl = document.createElement('div');
+                    nameEl.className = 'project-file-name';
+                    nameEl.textContent = item.name;
+                    const meta = document.createElement('div');
+                    meta.className = 'project-file-meta';
+                    const timeEl = document.createElement('span');
+                    timeEl.textContent = formatLocalDateTime(item.lastModified);
+                    const sizeEl = document.createElement('span');
+                    sizeEl.textContent = formatBytes(item.size);
+                    meta.appendChild(timeEl);
+                    meta.appendChild(sizeEl);
+                    info.appendChild(nameEl);
+                    info.appendChild(meta);
+
+                    const action = document.createElement('span');
+                    action.className = 'project-file-action';
+                    action.textContent = '載入';
+
+                    button.appendChild(info);
+                    button.appendChild(action);
+                    projectFileListEl.appendChild(button);
+                });
+            } catch (err) {
+                renderProjectFileListMessage(`讀取存檔清單失敗: ${err.message}`);
+            }
+        };
+        */
+        const refreshProjectFileList = async () => {
+            if (!window.showDirectoryPicker) {
+                closeProjectFileModal();
+                jsonImportInput?.click();
+                return;
+            }
+
+            const directoryHandle = await ensureSaveDirectoryHandle({ promptUser: true, writeAccess: false });
+            if (!directoryHandle) return;
+
+            openProjectFileModal();
+            renderProjectFileListMessage('Loading save folder...');
+            projectFileModalSubtitle.textContent = `Current folder: ${directoryHandle.name}`;
+
+            try {
+                const files = await collectProjectFiles(directoryHandle);
+                if (files.length === 0) {
+                    renderProjectFileListMessage('No JSON project files found.');
+                    return;
+                }
+
+                projectFileListEl.innerHTML = '';
+                files.forEach((item) => {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'project-file-item';
+                    button.addEventListener('click', async () => {
+                        await loadProjectFromHandle(item.handle);
+                    });
+
+                    const info = document.createElement('div');
+                    const nameEl = document.createElement('div');
+                    nameEl.className = 'project-file-name';
+                    nameEl.textContent = item.name;
+                    const meta = document.createElement('div');
+                    meta.className = 'project-file-meta';
+                    const timeEl = document.createElement('span');
+                    timeEl.textContent = formatLocalDateTime(item.lastModified);
+                    const sizeEl = document.createElement('span');
+                    sizeEl.textContent = formatBytes(item.size);
+                    meta.appendChild(timeEl);
+                    meta.appendChild(sizeEl);
+                    info.appendChild(nameEl);
+                    info.appendChild(meta);
+
+                    const action = document.createElement('span');
+                    action.className = 'project-file-action';
+                    action.textContent = 'Load';
+
+                    button.appendChild(info);
+                    button.appendChild(action);
+                    projectFileListEl.appendChild(button);
+                });
+            } catch (err) {
+                renderProjectFileListMessage(`Failed to read save list: ${err.message}`);
+            }
+        };
+        const downloadProjectJson = (dataStr, fileName) => {
+            const a = document.createElement('a');
+            const blobUrl = URL.createObjectURL(new Blob([dataStr], { type: 'application/json' }));
+            a.href = blobUrl;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(blobUrl);
+        };
+        const startAutoBackupTimer = () => {
+            if (autoBackupTimerId) clearInterval(autoBackupTimerId);
+            autoBackupTimerId = window.setInterval(() => {
+                runAutoBackup().catch((err) => console.error('Auto backup failed:', err));
+            }, AUTO_BACKUP_INTERVAL_MS);
+        };
+        const canLoadImageSource = (src) => new Promise((resolve) => {
+            if (!src) {
+                resolve(false);
+                return;
+            }
+            const probe = new Image();
+            probe.onload = () => resolve(true);
+            probe.onerror = () => resolve(false);
+            probe.src = withCacheBuster(src);
+        });
+        const resolveImportedImageSource = async (objData) => {
+            const savedAssetPath = normalizePath(objData?.assetPath || '');
+            const fallbackAssetPath = buildDefaultAssetPath(objData?.name);
+            const candidates = [...new Set([savedAssetPath, fallbackAssetPath].filter(Boolean))];
+
+            for (const assetPath of candidates) {
+                if (await canLoadImageSource(assetPath)) {
+                    return {
+                        displaySrc: withCacheBuster(assetPath),
+                        storedSrc: objData.src,
+                        assetPath
+                    };
+                }
+            }
+
+            return {
+                displaySrc: objData.src,
+                storedSrc: objData.src,
+                assetPath: savedAssetPath || fallbackAssetPath
+            };
+        };
+        const normalizeObjectNote = (note) => String(note || '').replace(/\r\n/g, '\n').trim();
+        const getObjectNoteSummary = (note, maxLength = 28) => {
+            const singleLine = normalizeObjectNote(note).replace(/\s+/g, ' ');
+            return singleLine.length > maxLength ? `${singleLine.slice(0, maxLength - 3)}...` : singleLine;
+        };
+        const getObjectDisplayTitle = (obj) => {
+            const note = normalizeObjectNote(obj?.note);
+            return note ? `${obj.name}\n註解: ${note}` : obj.name;
+        };
+        const loadSidebarSectionState = () => {
+            try {
+                return JSON.parse(localStorage.getItem(SIDEBAR_SECTION_STORAGE_KEY) || '{}');
+            } catch (err) {
+                return {};
+            }
+        };
+        const sidebarSectionState = loadSidebarSectionState();
+        const loadSidebarSubsectionState = () => {
+            try {
+                return JSON.parse(localStorage.getItem(SIDEBAR_SUBSECTION_STORAGE_KEY) || '{}');
+            } catch (err) {
+                return {};
+            }
+        };
+        const sidebarSubsectionState = loadSidebarSubsectionState();
+        const saveSidebarSectionState = () => {
+            try {
+                localStorage.setItem(SIDEBAR_SECTION_STORAGE_KEY, JSON.stringify(sidebarSectionState));
+            } catch (err) {
+            }
+        };
+        const saveSidebarSubsectionState = () => {
+            try {
+                localStorage.setItem(SIDEBAR_SUBSECTION_STORAGE_KEY, JSON.stringify(sidebarSubsectionState));
+            } catch (err) {
+            }
+        };
+        const loadBottomPanelHeight = () => {
+            try {
+                return getNum(localStorage.getItem(BOTTOM_PANEL_HEIGHT_STORAGE_KEY), 250);
+            } catch (err) {
+                return 250;
+            }
+        };
+        const getBottomPanelHeightBounds = () => {
+            const viewportHeight = Math.max(window.innerHeight || 0, document.documentElement.clientHeight || 0);
+            const maxHeight = Math.max(
+                BOTTOM_PANEL_MIN_HEIGHT,
+                viewportHeight - WORKSPACE_MIN_HEIGHT - TIMELINE_RESIZER_HEIGHT
+            );
+            return { min: BOTTOM_PANEL_MIN_HEIGHT, max: maxHeight };
+        };
+        const clampBottomPanelHeight = (height) => {
+            const bounds = getBottomPanelHeightBounds();
+            return Math.min(bounds.max, Math.max(bounds.min, Math.round(getNum(height, 250))));
+        };
+        const applyBottomPanelHeight = (height, persist = true) => {
+            const clampedHeight = clampBottomPanelHeight(height);
+            document.documentElement.style.setProperty('--bottom-panel-height', `${clampedHeight}px`);
+            if (persist) {
+                try {
+                    localStorage.setItem(BOTTOM_PANEL_HEIGHT_STORAGE_KEY, String(clampedHeight));
+                } catch (err) {
+                }
+            }
+            return clampedHeight;
+        };
+        const stopTimelineResize = (persist = true) => {
+            if (!timelinePanelResize.isDragging) return;
+            timelinePanelResize.isDragging = false;
+            document.body.classList.remove('is-resizing-timeline');
+            if (persist) {
+                applyBottomPanelHeight(bottomPanel.getBoundingClientRect().height, true);
+            }
+        };
         const stripDataUrlPrefix = (dataUrl) => {
             const parts = String(dataUrl || '').split(',', 2);
             return parts.length === 2 ? parts[1] : '';
@@ -690,12 +1901,336 @@
         }
 
         function finalizeNewObject(newObj) {
+            newObj.trackVisible = newObj.trackVisible !== false;
+            if (newObj.domWrapper?.dataset) {
+                newObj.domWrapper.dataset.trackVisible = newObj.trackVisible ? 'true' : 'false';
+            }
             animObjects.push(newObj);
             updateZIndices();
             updateUIState();
             selectObject(newObj.id);
             btnPlay.disabled = false;
             return newObj;
+        }
+
+        function getCanvasDisplayScale() {
+            return outputMask.enabled ? canvasZoom * canvasViewportBaseScale : canvasZoom;
+        }
+
+        function updateOutputMaskStatus() {
+            if (outputMask.enabled) {
+                outputMaskInput.value = `${outputMask.width}x${outputMask.height}`;
+                outputMaskStatus.innerText = `目前遮罩：${outputMask.width} x ${outputMask.height}`;
+            } else {
+                outputMaskInput.value = '';
+                outputMaskStatus.innerText = '目前未啟用遮罩';
+            }
+        }
+
+        function updateCanvasViewportTransform() {
+            canvasViewport.style.transform = `translate(-50%, -50%) scale(${getCanvasDisplayScale()})`;
+            zoomDisplay.innerText = `${Math.round(canvasZoom * 100)}%`;
+        }
+
+        function updateCanvasMaskLayout() {
+            const canvasWidth = Math.max(1, canvas.clientWidth);
+            const canvasHeight = Math.max(1, canvas.clientHeight);
+            let logicalWidth = canvasWidth;
+            let logicalHeight = canvasHeight;
+            let frameWidth = canvasWidth;
+            let frameHeight = canvasHeight;
+            canvasViewportBaseScale = 1;
+
+            if (outputMask.enabled) {
+                logicalWidth = outputMask.width;
+                logicalHeight = outputMask.height;
+                const framePadding = 40;
+                canvasViewportBaseScale = Math.max(
+                    0.05,
+                    Math.min(
+                        (canvasWidth - framePadding) / logicalWidth,
+                        (canvasHeight - framePadding) / logicalHeight
+                    )
+                );
+                frameWidth = logicalWidth * canvasViewportBaseScale;
+                frameHeight = logicalHeight * canvasViewportBaseScale;
+                canvasMaskFrame.classList.add('mask-enabled');
+                canvasMaskLabel.innerText = `${logicalWidth} x ${logicalHeight}`;
+            } else {
+                canvasMaskFrame.classList.remove('mask-enabled');
+                canvasMaskLabel.innerText = '';
+            }
+
+            canvasMaskFrame.style.width = `${frameWidth}px`;
+            canvasMaskFrame.style.height = `${frameHeight}px`;
+            canvasViewport.style.width = `${logicalWidth}px`;
+            canvasViewport.style.height = `${logicalHeight}px`;
+            updateCanvasViewportTransform();
+            updateOutputMaskStatus();
+        }
+
+        function applyOutputMask() {
+            const parsed = parseOutputMaskValue(outputMaskInput.value);
+            if (!parsed) {
+                alert('請輸入像 1920x1080 或 720x480 這樣的尺寸。');
+                return;
+            }
+            outputMask = { enabled: true, width: parsed.width, height: parsed.height };
+            updateCanvasMaskLayout();
+        }
+
+        function clearOutputMask() {
+            outputMask.enabled = false;
+            updateCanvasMaskLayout();
+        }
+
+        function updateOutputMaskStatus() {
+            if (outputMask.enabled) {
+                outputMaskWidthInput.value = outputMask.width;
+                outputMaskHeightInput.value = outputMask.height;
+                outputMaskStatus.innerText = `目前遮罩：${outputMask.width} x ${outputMask.height}`;
+            } else {
+                outputMaskWidthInput.value = '';
+                outputMaskHeightInput.value = '';
+                outputMaskStatus.innerText = '目前未啟用遮罩';
+            }
+        }
+
+        function updateCanvasViewportTransform() {
+            if (outputMask.enabled) {
+                canvasMaskFrame.style.transform = `translate(-50%, -50%) scale(${canvasZoom})`;
+                canvasViewport.style.transform = `translate(-50%, -50%) scale(${canvasViewportBaseScale})`;
+            } else {
+                canvasMaskFrame.style.transform = 'translate(-50%, -50%)';
+                canvasViewport.style.transform = `translate(-50%, -50%) scale(${canvasZoom})`;
+            }
+            zoomDisplay.innerText = `${Math.round(canvasZoom * 100)}%`;
+        }
+
+        function updateCanvasMaskLayout() {
+            const canvasWidth = Math.max(1, canvas.clientWidth);
+            const canvasHeight = Math.max(1, canvas.clientHeight);
+            let logicalWidth = canvasWidth;
+            let logicalHeight = canvasHeight;
+            let frameWidth = canvasWidth;
+            let frameHeight = canvasHeight;
+            canvasViewportBaseScale = 1;
+
+            if (outputMask.enabled) {
+                logicalWidth = outputMask.width;
+                logicalHeight = outputMask.height;
+                const framePadding = 40;
+                canvasViewportBaseScale = Math.max(
+                    0.05,
+                    Math.min(
+                        (canvasWidth - framePadding) / logicalWidth,
+                        (canvasHeight - framePadding) / logicalHeight
+                    )
+                );
+                frameWidth = logicalWidth * canvasViewportBaseScale;
+                frameHeight = logicalHeight * canvasViewportBaseScale;
+                canvasMaskFrame.classList.add('mask-enabled');
+                canvasMaskLabel.innerText = `${logicalWidth} x ${logicalHeight}`;
+            } else {
+                canvasMaskFrame.classList.remove('mask-enabled');
+                canvasMaskLabel.innerText = '';
+            }
+
+            canvasMaskFrame.style.width = `${frameWidth}px`;
+            canvasMaskFrame.style.height = `${frameHeight}px`;
+            canvasViewport.style.width = `${logicalWidth}px`;
+            canvasViewport.style.height = `${logicalHeight}px`;
+            updateCanvasViewportTransform();
+            updateOutputMaskStatus();
+        }
+
+        function applyOutputMask() {
+            const width = Math.round(Number(outputMaskWidthInput.value));
+            const height = Math.round(Number(outputMaskHeightInput.value));
+            if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+                alert('請分別輸入有效的 width 與 height，例如 1920 和 1080。');
+                return;
+            }
+            outputMask = { enabled: true, width, height };
+            updateCanvasMaskLayout();
+        }
+
+        function setSidebarSectionCollapsed(sectionId, collapsed, persist = true) {
+            const section = document.querySelector(`.panel-section[data-section-id="${sectionId}"]`);
+            if (!section) return;
+
+            section.classList.toggle('is-collapsed', collapsed);
+            const toggleBtn = section.querySelector('.section-toggle');
+            if (toggleBtn) {
+                toggleBtn.textContent = collapsed ? '展開' : '收合';
+                toggleBtn.setAttribute('aria-expanded', String(!collapsed));
+            }
+
+            if (persist) {
+                sidebarSectionState[sectionId] = collapsed;
+                saveSidebarSectionState();
+            }
+        }
+
+        function toggleSidebarSection(sectionId) {
+            const section = document.querySelector(`.panel-section[data-section-id="${sectionId}"]`);
+            if (!section) return;
+            setSidebarSectionCollapsed(sectionId, !section.classList.contains('is-collapsed'));
+        }
+
+        function initializeSidebarSections() {
+            document.querySelectorAll('.panel-section[data-section-id]').forEach(section => {
+                const sectionId = section.dataset.sectionId;
+                setSidebarSectionCollapsed(sectionId, !!sidebarSectionState[sectionId], false);
+            });
+        }
+
+        function setSidebarSubsectionCollapsed(subsectionId, collapsed, persist = true) {
+            const subsection = document.querySelector(`.subpanel-section[data-subsection-id="${subsectionId}"]`);
+            if (!subsection) return;
+
+            subsection.classList.toggle('is-collapsed', collapsed);
+            const toggleBtn = subsection.querySelector('.subsection-toggle');
+            if (toggleBtn) {
+                toggleBtn.textContent = collapsed ? '展開' : '收合';
+                toggleBtn.setAttribute('aria-expanded', String(!collapsed));
+            }
+
+            if (persist) {
+                sidebarSubsectionState[subsectionId] = collapsed;
+                saveSidebarSubsectionState();
+            }
+        }
+
+        function toggleSidebarSubsection(subsectionId) {
+            const subsection = document.querySelector(`.subpanel-section[data-subsection-id="${subsectionId}"]`);
+            if (!subsection) return;
+            setSidebarSubsectionCollapsed(subsectionId, !subsection.classList.contains('is-collapsed'));
+        }
+
+        function createSidebarSubpanel(subsectionId, title) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'subpanel-section';
+            wrapper.dataset.subsectionId = subsectionId;
+
+            const header = document.createElement('div');
+            header.className = 'subpanel-header';
+
+            const titleEl = document.createElement('span');
+            titleEl.className = 'subpanel-title';
+            titleEl.textContent = title;
+
+            const toggleBtn = document.createElement('button');
+            toggleBtn.type = 'button';
+            toggleBtn.className = 'subsection-toggle';
+            toggleBtn.textContent = '收合';
+            toggleBtn.setAttribute('aria-expanded', 'true');
+            toggleBtn.addEventListener('click', () => toggleSidebarSubsection(subsectionId));
+
+            const body = document.createElement('div');
+            body.className = 'subpanel-body';
+
+            header.appendChild(titleEl);
+            header.appendChild(toggleBtn);
+            wrapper.appendChild(header);
+            wrapper.appendChild(body);
+
+            return { wrapper, body };
+        }
+
+        function setupSidebarSubsections() {
+            if (!document.getElementById('sidebar-section-layers')?.dataset.subsectionsReady) {
+                const layersBody = document.getElementById('sidebar-section-layers');
+                const imageAddWrapper = fileInput.parentElement;
+                const spineAddWrapper = spineInput.parentElement;
+                const layerListContainer = document.getElementById('object-list-container');
+                const noteGroup = layerNoteInput.closest('.control-group');
+                const blockAddWrapper = document.createElement('div');
+                blockAddWrapper.className = 'btn-add-obj-wrapper';
+                const blockAddButton = document.createElement('button');
+                blockAddButton.type = 'button';
+                blockAddButton.className = 'btn-add-obj';
+                blockAddButton.textContent = '+ 新增方形圖塊';
+                blockAddButton.addEventListener('click', () => addBlockObject());
+                blockAddWrapper.appendChild(blockAddButton);
+
+                const addPanel = createSidebarSubpanel('layer-add', '新增物件');
+                addPanel.body.append(imageAddWrapper, blockAddWrapper, spineAddWrapper);
+
+                const listPanel = createSidebarSubpanel('layer-list', '圖層清單');
+                listPanel.body.appendChild(layerListContainer);
+
+                const notePanel = createSidebarSubpanel('layer-note', '圖層備註');
+                notePanel.body.appendChild(noteGroup);
+
+                layersBody.innerHTML = '';
+                layersBody.append(addPanel.wrapper, listPanel.wrapper, notePanel.wrapper);
+                layersBody.dataset.subsectionsReady = 'true';
+            }
+
+            if (!document.getElementById('sidebar-section-properties')?.dataset.subsectionsReady) {
+                const propertiesBody = document.getElementById('sidebar-section-properties');
+                const maskGroup = outputMaskStatus.closest('.control-group');
+
+                objectSettingsPanel = createSidebarSubpanel('prop-object', '物件專屬設定').wrapper;
+                objectSettingsPanel.id = 'object-settings-panel';
+                objectSettingsPanel.style.display = 'none';
+                const objectSettingsBody = objectSettingsPanel.querySelector('.subpanel-body');
+
+                blockPanel = document.createElement('div');
+                blockPanel.id = 'block-panel';
+                blockPanel.style.display = 'none';
+                blockPanel.innerHTML = `
+                    <div class="control-group">
+                        <label>方塊尺寸：</label>
+                        <input type="number" id="prop-block-size" min="4" step="1" value="${DEFAULT_BLOCK_SIZE}">
+                    </div>
+                    <div class="control-group">
+                        <label>方塊顏色：</label>
+                        <input type="color" id="prop-block-color" value="${DEFAULT_BLOCK_COLOR}">
+                    </div>
+                `;
+                blockSizeInput = blockPanel.querySelector('#prop-block-size');
+                blockColorInput = blockPanel.querySelector('#prop-block-color');
+
+                objectSettingsBody.append(blockPanel, spinePanel);
+
+                const outputPanel = createSidebarSubpanel('prop-output', '輸出與遮罩');
+                outputPanel.body.appendChild(maskGroup);
+
+                const transformPanel = createSidebarSubpanel('prop-transform', '位置與變形');
+                transformPanel.body.appendChild(propsPanel);
+
+                const effectsPanel = createSidebarSubpanel('prop-effects', '外觀效果');
+                effectsPanel.body.appendChild(tintPanel);
+
+                propertiesBody.innerHTML = '';
+                propertiesBody.append(outputPanel.wrapper, transformPanel.wrapper, effectsPanel.wrapper, objectSettingsPanel);
+                propertiesBody.dataset.subsectionsReady = 'true';
+            }
+
+            if (!document.getElementById('sidebar-section-snapshot')?.dataset.subsectionsReady) {
+                const snapshotBody = document.getElementById('sidebar-section-snapshot');
+                const intervalGroup = intervalInput.closest('.control-group');
+                const clipboardRow = btnCopyKf.closest('.keyframe-clipboard-row');
+
+                const timingPanel = createSidebarSubpanel('snapshot-timing', '影格設定');
+                timingPanel.body.appendChild(intervalGroup);
+
+                const actionsPanel = createSidebarSubpanel('snapshot-actions', '影格操作');
+                actionsPanel.body.append(btnSnapshot, btnDeleteKf, clipboardRow, updateHint);
+
+                snapshotBody.innerHTML = '';
+                snapshotBody.append(timingPanel.wrapper, actionsPanel.wrapper);
+                snapshotBody.dataset.subsectionsReady = 'true';
+            }
+        }
+
+        function initializeSidebarSubsections() {
+            document.querySelectorAll('.subpanel-section[data-subsection-id]').forEach(subsection => {
+                const subsectionId = subsection.dataset.subsectionId;
+                setSidebarSubsectionCollapsed(subsectionId, !!sidebarSubsectionState[subsectionId], false);
+            });
         }
 
         function getSpineRuntimeVersion(editorVersion) {
@@ -779,6 +2314,10 @@
         }
 
         function finalizeNewObject(newObj) {
+            newObj.trackVisible = newObj.trackVisible !== false;
+            if (newObj.domWrapper?.dataset) {
+                newObj.domWrapper.dataset.trackVisible = newObj.trackVisible ? 'true' : 'false';
+            }
             animObjects.push(newObj);
             updateZIndices();
             updateUIState();
@@ -789,12 +2328,54 @@
 
         function setZoom(level) {
             canvasZoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, level));
-            canvasViewport.style.transform = `scale(${canvasZoom})`;
-            zoomDisplay.innerText = `${Math.round(canvasZoom * 100)}%`;
+            updateCanvasViewportTransform();
         }
         function zoomIn()    { setZoom(canvasZoom * ZOOM_STEP); }
         function zoomOut()   { setZoom(canvasZoom / ZOOM_STEP); }
         function resetZoom() { setZoom(1.0); }
+
+        setupProjectFileToolbar();
+        buildProjectFileModal();
+        setupSidebarSubsections();
+        if (blockSizeInput && blockColorInput) {
+            blockSizeInput.addEventListener('input', handleBlockPropertyChange);
+            blockColorInput.addEventListener('input', handleBlockPropertyChange);
+        }
+        applyBottomPanelHeight(loadBottomPanelHeight(), false);
+        initializeSidebarSections();
+        initializeSidebarSubsections();
+        updateCanvasMaskLayout();
+        window.addEventListener('resize', () => {
+            applyBottomPanelHeight(bottomPanel.getBoundingClientRect().height, false);
+            updateCanvasMaskLayout();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && projectFileModalOpen) {
+                closeProjectFileModal();
+            }
+        });
+        timelineResizer.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            timelinePanelResize.isDragging = true;
+            timelinePanelResize.startY = e.clientY;
+            timelinePanelResize.startHeight = bottomPanel.getBoundingClientRect().height;
+            document.body.classList.add('is-resizing-timeline');
+        });
+        document.addEventListener('mousemove', (e) => {
+            if (!timelinePanelResize.isDragging) return;
+            const nextHeight = timelinePanelResize.startHeight + (timelinePanelResize.startY - e.clientY);
+            applyBottomPanelHeight(nextHeight, false);
+        });
+        document.addEventListener('mouseup', () => stopTimelineResize(true));
+        document.addEventListener('mouseleave', () => stopTimelineResize(true));
+        [outputMaskWidthInput, outputMaskHeightInput].forEach((input) => {
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    applyOutputMask();
+                }
+            });
+        });
 
         canvas.addEventListener('wheel', (e) => {
             e.preventDefault();
@@ -935,7 +2516,7 @@
         document.addEventListener('wheel', handleTimelineWheel, { passive: false, capture: true });
 
         canvas.addEventListener('click', (e) => {
-            if (e.target === canvas || e.target === canvasViewport) {
+            if (e.target === canvas || e.target === canvasViewport || e.target === canvasMaskFrame) {
                 if (selectedKeyframeIndex !== null || selectedKeyframes.length > 0) {
                     selectedKeyframes = [];
                     updateMultiSelectUI();
@@ -947,14 +2528,34 @@
         });
 
         Object.keys(inputs).forEach(key => {
-            inputs[key].addEventListener('input', () => {
+            const eventName = inputs[key].type === 'checkbox' ? 'change' : 'input';
+            inputs[key].addEventListener(eventName, () => {
                 const targetObj = getSelectedObjectData();
                 if (targetObj) {
                     const tempPose = getInputPoseValues();
                     targetObj.currentPose = { ...tempPose };
                     applyPoseToDOM(targetObj.domWrapper, tempPose);
+                    refreshTrackVisibilityIndicators();
                 }
             });
+        });
+
+        function handleBlockPropertyChange() {
+            const targetObj = getSelectedObjectData();
+            if (!targetObj || targetObj.type !== BLOCK_TYPE || !blockSizeInput || !blockColorInput) return;
+            targetObj.blockData = normalizeBlockData({
+                size: blockSizeInput.value,
+                color: blockColorInput.value
+            });
+            syncBlockElement(targetObj);
+        }
+
+        layerNoteInput.addEventListener('input', () => {
+            const targetObj = getSelectedObjectData();
+            if (!targetObj) return;
+            targetObj.note = layerNoteInput.value;
+            renderObjectList();
+            updateGlobalTimeline();
         });
 
         // --- 物件與圖層管理 ---
@@ -962,15 +2563,15 @@
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
-            reader.onload = (ev) => { addNewObject(file.name, ev.target.result); fileInput.value = ''; };
+            reader.onload = (ev) => { addNewObject(file.name, ev.target.result, '', ev.target.result, buildDefaultAssetPath(file.name)); fileInput.value = ''; };
             reader.readAsDataURL(file);
         });
 
-        function addNewObject(name, base64Src) {
+        function addNewObject(name, imageSrc, note = '', storedSrc = null, assetPath = '') {
             const objId = createObjectId();
             const wrapper = createObjectWrapper(objId);
             const img = document.createElement('img');
-            img.src = base64Src;
+            img.src = imageSrc;
             (wrapper.contentLayer || wrapper).appendChild(img);
             canvasViewport.appendChild(wrapper);
 
@@ -980,12 +2581,49 @@
                 id: objId,
                 type: IMAGE_TYPE,
                 name: name,
-                src: base64Src,
+                note: normalizeObjectNote(note),
+                src: storedSrc || imageSrc,
+                assetPath: normalizePath(assetPath || buildDefaultAssetPath(name)),
                 domWrapper: wrapper,
                 currentPose: clonePose(),
                 keyframes: []
             };
             
+            return finalizeNewObject(newObj);
+        }
+
+        function syncBlockElement(obj) {
+            if (!obj?.blockElement) return;
+            const blockData = normalizeBlockData(obj.blockData);
+            obj.blockData = blockData;
+            obj.blockElement.style.width = `${blockData.size}px`;
+            obj.blockElement.style.height = `${blockData.size}px`;
+            obj.blockElement.style.background = blockData.color;
+        }
+
+        function addBlockObject(blockData = {}, note = '', name = '方形圖塊') {
+            const objId = createObjectId();
+            const wrapper = createObjectWrapper(objId, 'block-object');
+            const blockElement = document.createElement('div');
+            blockElement.className = 'shape-block';
+            (wrapper.contentLayer || wrapper).appendChild(blockElement);
+            canvasViewport.appendChild(wrapper);
+
+            applyPoseToDOM(wrapper, DEFAULT_POSE);
+
+            const newObj = {
+                id: objId,
+                type: BLOCK_TYPE,
+                name,
+                note: normalizeObjectNote(note),
+                domWrapper: wrapper,
+                blockElement,
+                blockData: normalizeBlockData(blockData),
+                currentPose: clonePose(),
+                keyframes: []
+            };
+
+            syncBlockElement(newObj);
             return finalizeNewObject(newObj);
         }
 
@@ -1100,7 +2738,7 @@
             }
         }
 
-        async function addSpineObject(spineData, keyframes = []) {
+        async function addSpineObject(spineData, keyframes = [], note = '') {
             await ensureSpineRuntime(spineData.editorVersion);
 
             const objId = createObjectId();
@@ -1121,6 +2759,7 @@
                 id: objId,
                 type: SPINE_TYPE,
                 name: spineData.name || 'Spine Object',
+                note: normalizeObjectNote(note || spineData.note),
                 domWrapper: wrapper,
                 currentPose: clonePose(),
                 keyframes: keyframes.map(normalizeKeyframe),
@@ -1166,6 +2805,74 @@
             if (newIndex < 0 || newIndex >= animObjects.length) return; 
             [animObjects[index], animObjects[newIndex]] = [animObjects[newIndex], animObjects[index]];
             updateZIndices(); updateUIState();
+        }
+
+        function moveLayerToDisplayInsertionIndex(objId, insertionIndex) {
+            const displayObjects = [...animObjects].reverse();
+            const sourceIndex = displayObjects.findIndex(obj => obj.id === objId);
+            if (sourceIndex < 0) return;
+
+            let resolvedInsertionIndex = clamp(insertionIndex, 0, displayObjects.length);
+            const [movingObj] = displayObjects.splice(sourceIndex, 1);
+            if (!movingObj) return;
+            if (sourceIndex < resolvedInsertionIndex) resolvedInsertionIndex -= 1;
+            resolvedInsertionIndex = clamp(resolvedInsertionIndex, 0, displayObjects.length);
+            displayObjects.splice(resolvedInsertionIndex, 0, movingObj);
+
+            animObjects = displayObjects.reverse();
+            updateZIndices();
+            updateUIState();
+        }
+
+        function clearTrackReorderIndicators() {
+            tracksContainer.querySelectorAll('.track-row[data-obj-id]').forEach((row) => {
+                row.classList.remove('track-reorder-source', 'track-reorder-target-before', 'track-reorder-target-after');
+            });
+        }
+
+        function updateTrackReorderIndicators() {
+            clearTrackReorderIndicators();
+            if (!trackReorderDrag.isDragging) return;
+
+            const rows = Array.from(tracksContainer.querySelectorAll('.track-row[data-obj-id]'));
+            const sourceRow = tracksContainer.querySelector(`.track-row[data-obj-id="${trackReorderDrag.objId}"]`);
+            sourceRow?.classList.add('track-reorder-source');
+
+            if (!trackReorderDrag.hasMoved || rows.length === 0) return;
+
+            if (trackReorderDrag.insertionIndex <= 0) {
+                rows[0]?.classList.add('track-reorder-target-before');
+                return;
+            }
+            if (trackReorderDrag.insertionIndex >= rows.length) {
+                rows[rows.length - 1]?.classList.add('track-reorder-target-after');
+                return;
+            }
+            rows[trackReorderDrag.insertionIndex]?.classList.add('track-reorder-target-before');
+        }
+
+        function getTrackReorderInsertionIndex(clientY) {
+            const rows = Array.from(tracksContainer.querySelectorAll('.track-row[data-obj-id]'));
+            for (let i = 0; i < rows.length; i++) {
+                const rect = rows[i].getBoundingClientRect();
+                if (clientY < rect.top + (rect.height / 2)) return i;
+            }
+            return rows.length;
+        }
+
+        function handleTrackReorderMouseDown(event, objId) {
+            if (playState.isPlaying || event.button !== 0) return;
+            event.preventDefault();
+            event.stopPropagation();
+            trackReorderDrag = {
+                isDragging: true,
+                hasMoved: false,
+                objId,
+                startY: event.clientY,
+                insertionIndex: getTrackReorderInsertionIndex(event.clientY)
+            };
+            document.body.classList.add('is-dragging-track-reorder');
+            updateTrackReorderIndicators();
         }
 
         function deleteObject(objId) {
@@ -1223,27 +2930,72 @@
             spineAnimationSelect.value = obj.spineData.animationName || animationNames[0];
         }
 
-        function updateUIState() {
+        function updateBlockPanel(obj) {
+            if (!blockPanel || !blockSizeInput || !blockColorInput) return;
+            if (!obj || obj.type !== BLOCK_TYPE) {
+                blockPanel.style.display = 'none';
+                return;
+            }
+
+            obj.blockData = normalizeBlockData(obj.blockData);
+            blockPanel.style.display = 'block';
+            blockSizeInput.value = Math.round(obj.blockData.size);
+            blockColorInput.value = obj.blockData.color;
+        }
+
+        function renderObjectList() {
             objectListEl.innerHTML = '';
             for (let i = animObjects.length - 1; i >= 0; i--) {
                 const obj = animObjects[i];
                 const li = document.createElement('li');
                 if (obj.id === selectedObjectId) li.className = 'active';
-                const safeName = escapeHTML(obj.name);
-                li.innerHTML = `
-                    <span class="obj-name" title="${safeName}">${safeName}</span>
-                    <div style="display:flex; gap:2px;">
-                        <button class="layer-btn" onclick="event.stopPropagation(); moveLayer(${obj.id}, 1);">▲</button>
-                        <button class="layer-btn" onclick="event.stopPropagation(); moveLayer(${obj.id}, -1);">▼</button>
-                        <button class="layer-btn btn-danger" onclick="event.stopPropagation(); deleteObject(${obj.id});">🗑</button>
-                    </div>`;
+
+                const info = document.createElement('div');
+                info.className = 'object-list-info';
+
+                const nameEl = document.createElement('span');
+                nameEl.className = 'obj-name';
+                nameEl.textContent = obj.name;
+                nameEl.title = getObjectDisplayTitle(obj);
+                info.appendChild(nameEl);
+
+                const noteSummary = getObjectNoteSummary(obj.note);
+                if (noteSummary) {
+                    li.classList.add('has-note');
+                    const noteEl = document.createElement('span');
+                    noteEl.className = 'obj-note';
+                    noteEl.textContent = noteSummary;
+                    noteEl.title = normalizeObjectNote(obj.note);
+                    info.appendChild(noteEl);
+                }
+
+                const actions = document.createElement('div');
+                actions.className = 'layer-actions';
+                actions.innerHTML = `
+                    <button class="layer-btn" title="上移圖層" onclick="event.stopPropagation(); moveLayer(${obj.id}, 1);">上</button>
+                    <button class="layer-btn" title="下移圖層" onclick="event.stopPropagation(); moveLayer(${obj.id}, -1);">下</button>
+                    <button class="layer-btn btn-danger" title="刪除圖層" onclick="event.stopPropagation(); deleteObject(${obj.id});">刪</button>
+                `;
+
+                li.appendChild(info);
+                li.appendChild(actions);
                 li.onclick = () => selectObject(obj.id);
                 objectListEl.appendChild(li);
             }
+        }
+
+        function updateUIState() {
+            renderObjectList();
 
             const obj = getSelectedObjectData();
             updateSpinePanel(obj);
+            updateBlockPanel(obj);
+            if (objectSettingsPanel) {
+                objectSettingsPanel.style.display = (obj && (obj.type === SPINE_TYPE || obj.type === BLOCK_TYPE)) ? '' : 'none';
+            }
             if (obj) {
+                layerNoteInput.disabled = false;
+                layerNoteInput.value = obj.note || '';
                 propsPanel.style.opacity = 1; propsPanel.style.pointerEvents = 'auto'; btnSnapshot.disabled = false;
                 tintPanel.style.opacity = 1; tintPanel.style.pointerEvents = 'auto';
                 const anyKfSelected = selectedKeyframeIndex !== null || selectedKeyframes.length > 0;
@@ -1261,6 +3013,8 @@
                     btnDeleteKf.style.display = 'none';
                 }
             } else {
+                layerNoteInput.value = '';
+                layerNoteInput.disabled = true;
                 propsPanel.style.opacity = 0.5; propsPanel.style.pointerEvents = 'none'; btnSnapshot.disabled = true;
                 tintPanel.style.opacity = 0.5; tintPanel.style.pointerEvents = 'none';
                 btnDeleteKf.style.display = 'none';
@@ -1602,8 +3356,52 @@
                 const obj = animObjects[i];
 
                 const header = document.createElement('div');
-                header.className = 'track-header';
-                header.innerText = obj.name;
+                header.className = 'track-header track-object-header';
+                header.dataset.objId = obj.id;
+                if (!isObjectTrackVisible(obj)) header.classList.add('is-hidden');
+                header.title = getObjectDisplayTitle(obj);
+
+                const topRow = document.createElement('div');
+                topRow.className = 'track-header-top';
+
+                const reorderHandle = document.createElement('button');
+                reorderHandle.type = 'button';
+                reorderHandle.className = 'track-reorder-handle';
+                reorderHandle.title = 'Drag to reorder layer';
+                reorderHandle.setAttribute('aria-label', `Reorder ${obj.name}`);
+                reorderHandle.textContent = '||';
+                reorderHandle.onmousedown = (event) => handleTrackReorderMouseDown(event, obj.id);
+                reorderHandle.onclick = (event) => event.stopPropagation();
+
+                const visibilityBtn = document.createElement('button');
+                visibilityBtn.type = 'button';
+                visibilityBtn.className = 'track-visibility-btn';
+                visibilityBtn.dataset.objId = obj.id;
+                if (!isObjectTrackVisible(obj)) visibilityBtn.classList.add('is-hidden');
+                visibilityBtn.title = isObjectTrackVisible(obj) ? 'Hide object' : 'Show object';
+                visibilityBtn.innerHTML = getTrackVisibilityIcon(isObjectTrackVisible(obj));
+                visibilityBtn.onclick = (event) => {
+                    event.stopPropagation();
+                    toggleTrackObjectVisibility(obj.id);
+                };
+
+                const nameWrap = document.createElement('div');
+                nameWrap.className = 'track-object-name-wrap';
+                const nameEl = document.createElement('span');
+                nameEl.className = 'track-object-name';
+                nameEl.textContent = obj.name;
+                nameWrap.appendChild(nameEl);
+                topRow.appendChild(reorderHandle);
+                topRow.appendChild(visibilityBtn);
+                topRow.appendChild(nameWrap);
+                header.appendChild(topRow);
+                const noteSummary = getObjectNoteSummary(obj.note, 24);
+                if (noteSummary) {
+                    const noteEl = document.createElement('span');
+                    noteEl.className = 'track-object-note';
+                    noteEl.textContent = noteSummary;
+                    header.appendChild(noteEl);
+                }
                 header.onclick   = () => selectObject(obj.id);
 
                 const framesArea = document.createElement('div');
@@ -1613,6 +3411,8 @@
 
                 const row = document.createElement('div');
                 row.className   = 'track-row';
+                if (noteSummary) row.classList.add('has-note');
+                row.dataset.objId = obj.id;
                 row.style.width = `${trackWidth + HEADER_WIDTH}px`;
                 if (obj.id === selectedObjectId) row.classList.add('active-track');
                 row.appendChild(header);
@@ -1664,6 +3464,7 @@
                 obj.currentPose = { ...pose };
                 if (obj.id === selectedObjectId && selectedKeyframeIndex === null) syncInputsWithState(pose);
             });
+            refreshTrackVisibilityIndicators();
         }
 
         // --- 全域事件監聽 (拖曳與刷洗) ---
@@ -1674,6 +3475,16 @@
 
             if (marqueeState.isSelecting) {
                 updateMarqueeSelection(e);
+            }
+
+            if (trackReorderDrag.isDragging) {
+                if (Math.abs(e.clientY - trackReorderDrag.startY) > 3) {
+                    trackReorderDrag.hasMoved = true;
+                }
+                if (trackReorderDrag.hasMoved) {
+                    trackReorderDrag.insertionIndex = getTrackReorderInsertionIndex(e.clientY);
+                }
+                updateTrackReorderIndicators();
             }
 
             if (kfDrag.isDragging) {
@@ -1696,8 +3507,9 @@
             if (drag.isDragging && selectedObjectId !== null) {
                 const obj = getSelectedObjectData();
                 if (!obj) { drag.isDragging = false; return; }
-                obj.currentPose.x = drag.objX + (e.clientX - drag.sx) / canvasZoom;
-                obj.currentPose.y = drag.objY - (e.clientY - drag.sy) / canvasZoom;
+                const displayScale = getCanvasDisplayScale();
+                obj.currentPose.x = drag.objX + (e.clientX - drag.sx) / displayScale;
+                obj.currentPose.y = drag.objY - (e.clientY - drag.sy) / displayScale;
                 syncInputsWithState(obj.currentPose); applyPoseToDOM(obj.domWrapper, obj.currentPose);
             }
         });
@@ -1706,6 +3518,19 @@
             if (scrubState.isScrubbing) {
                 scrubState.isScrubbing = false;
                 scrubTimeDisplay.style.display = 'none';
+            }
+
+            if (trackReorderDrag.isDragging) {
+                const dragResult = { ...trackReorderDrag };
+                trackReorderDrag = { isDragging: false, hasMoved: false, objId: null, startY: 0, insertionIndex: -1 };
+                document.body.classList.remove('is-dragging-track-reorder');
+                clearTrackReorderIndicators();
+
+                if (dragResult.hasMoved) {
+                    moveLayerToDisplayInsertionIndex(dragResult.objId, dragResult.insertionIndex);
+                } else if (dragResult.objId !== null) {
+                    selectObject(dragResult.objId);
+                }
             }
 
             if (marqueeState.isSelecting) {
@@ -1932,9 +3757,14 @@
         }
 
         function applyPoseToDOM(domWrapper, pose) {
+            const trackVisible = domWrapper?.dataset?.trackVisible !== 'false';
+            const finalVisible = trackVisible && pose.visible !== false;
             domWrapper.style.transform = `translate(calc(-50% + ${pose.x}px), calc(-50% + ${-pose.y}px)) rotate(${pose.rot}deg) scale(${pose.scale})`;
             domWrapper.style.opacity = pose.opacity;
+            domWrapper.style.visibility = finalVisible ? 'visible' : 'hidden';
+            domWrapper.style.pointerEvents = finalVisible ? 'auto' : 'none';
             const effects = normalizePoseEffects(pose);
+            domWrapper.style.mixBlendMode = effects.blendMode;
             const tint = effects.tint;
             const filters = [];
             if (domWrapper.tintFloodNode) {
@@ -1955,7 +3785,7 @@
             }
             if (domWrapper.contentLayer) {
                 domWrapper.contentLayer.style.filter = filters.length > 0 ? filters.join(' ') : 'none';
-                domWrapper.contentLayer.style.mixBlendMode = effects.blendMode;
+                domWrapper.contentLayer.style.mixBlendMode = 'normal';
             }
         }
 
@@ -2002,6 +3832,7 @@
                         rot:     lerp(kfs[i].rot,     kfs[i + 1].rot,     t),
                         scale:   lerp(kfs[i].scale,   kfs[i + 1].scale,   t),
                         opacity: lerp(kfs[i].opacity, kfs[i + 1].opacity, t),
+                        visible: t < 1 ? (kfs[i].visible !== false) : (kfs[i + 1].visible !== false),
                         tint:    lerpTint(kfs[i].tint || DEFAULT_TINT, kfs[i + 1].tint || DEFAULT_TINT, t),
                         tintStrength: lerp(getNum(kfs[i].tintStrength, DEFAULT_TINT_STRENGTH), getNum(kfs[i + 1].tintStrength, DEFAULT_TINT_STRENGTH), t),
                         hue:     lerp(getNum(kfs[i].hue, DEFAULT_HUE), getNum(kfs[i + 1].hue, DEFAULT_HUE), t),
@@ -2040,7 +3871,7 @@
             btnPlay.style.display = 'none'; btnStop.style.display = 'block';
             
             canvas.style.pointerEvents = 'none'; propsPanel.parentElement.style.opacity = 0.4;
-            document.querySelectorAll('.panel-section button:not(.btn-play):not(.btn-danger)').forEach(b => b.disabled = true);
+            document.querySelectorAll('.panel-section button:not(.btn-play):not(.btn-danger):not(.section-toggle):not(.subsection-toggle)').forEach(b => b.disabled = true);
             exitEditingFrameMode();
 
             playhead.style.display = 'block';
@@ -2059,7 +3890,7 @@
             canvas.style.pointerEvents = 'auto'; propsPanel.parentElement.style.opacity = 1;
             
             // [修復 Bug 4] 先盲解鎖所有按鈕，立刻呼叫 updateUIState 套用正確狀態邏輯
-            document.querySelectorAll('.panel-section button:not(.btn-play):not(.btn-danger)').forEach(b => b.disabled = false);
+            document.querySelectorAll('.panel-section button:not(.btn-play):not(.btn-danger):not(.section-toggle):not(.subsection-toggle)').forEach(b => b.disabled = false);
             updateUIState(); 
             
             // 讓物件停留在暫停的瞬間
@@ -2089,8 +3920,12 @@
             animObjects.forEach(obj => {
                 if (obj.keyframes.length === 0) return;
                 const pose = interpolatePose(obj.keyframes, t_app);
-                if (pose) applyPoseToDOM(obj.domWrapper, pose);
+                if (pose) {
+                    applyPoseToDOM(obj.domWrapper, pose);
+                    obj.currentPose = { ...pose };
+                }
             });
+            refreshTrackVisibilityIndicators();
 
             if (t_app >= playState.totalDuration) {
                 playState.currentTime = playState.totalDuration;
@@ -2179,8 +4014,11 @@
             if (animObjects.length === 0) { alert('No project data to export.'); return; }
             const exportData = animObjects.map(obj => ({
                 name: obj.name,
+                note: normalizeObjectNote(obj.note),
                 type: obj.type || IMAGE_TYPE,
                 src: obj.type === IMAGE_TYPE ? obj.src : undefined,
+                assetPath: obj.type === IMAGE_TYPE ? normalizePath(obj.assetPath || buildDefaultAssetPath(obj.name)) : undefined,
+                blockData: obj.type === BLOCK_TYPE ? normalizeBlockData(obj.blockData) : undefined,
                 spineData: obj.type === SPINE_TYPE ? {
                     editorVersion: obj.spineData.editorVersion,
                     skeletonPath: obj.spineData.skeletonPath,
@@ -2198,6 +4036,7 @@
                     rot: Math.round(kf.rot),
                     scale: parseFloat(kf.scale.toFixed(2)),
                     opacity: parseFloat(kf.opacity.toFixed(2)),
+                    visible: kf.visible !== false,
                     tint: normalizeTintHex(kf.tint || DEFAULT_TINT),
                     tintStrength: parseFloat(getNum(kf.tintStrength, DEFAULT_TINT_STRENGTH).toFixed(2)),
                     hue: parseFloat(getNum(kf.hue, DEFAULT_HUE).toFixed(2)),
@@ -2207,7 +4046,12 @@
                 }))
             }));
 
-            const dataStr = JSON.stringify({ project_type: 'PixelAnimator_NLE', version: 3, objects: exportData }, null, 2);
+            const dataStr = JSON.stringify({
+                project_type: 'PixelAnimator_NLE',
+                version: 6,
+                mask: outputMask.enabled ? { width: outputMask.width, height: outputMask.height } : null,
+                objects: exportData
+            }, null, 2);
             const a = document.createElement('a');
             const blobUrl = URL.createObjectURL(new Blob([dataStr], { type: 'application/json' }));
             a.href = blobUrl;
@@ -2264,12 +4108,17 @@
                     const isSupportedObject = (obj) => {
                         if (!obj) return false;
                         if ((obj.type || IMAGE_TYPE) === SPINE_TYPE) return !!obj.spineData;
+                        if ((obj.type || IMAGE_TYPE) === BLOCK_TYPE) return true;
                         return !!obj.src;
                     };
                     if (!data.objects.every(isSupportedObject)) {
                         alert('The imported JSON contains unsupported object data.');
                         return;
                     }
+
+                    const importedMask = data.mask && Number.isFinite(data.mask.width) && Number.isFinite(data.mask.height)
+                        ? { enabled: true, width: Math.max(1, Math.round(data.mask.width)), height: Math.max(1, Math.round(data.mask.height)) }
+                        : { enabled: false, width: outputMask.width, height: outputMask.height };
 
                     let overwrite = true;
                     if (animObjects.length > 0) {
@@ -2290,13 +4139,29 @@
                         updateMultiSelectUI();
                     }
 
+                    outputMask = importedMask;
+                    updateCanvasMaskLayout();
+
                     for (const objData of data.objects) {
                         const objectType = objData.type || IMAGE_TYPE;
                         if (objectType === SPINE_TYPE) {
-                            await addSpineObject({ ...objData.spineData, name: objData.name }, objData.keyframes || []);
-                        } else {
-                            const newObj = addNewObject(objData.name, objData.src);
+                            const newObj = await addSpineObject({ ...objData.spineData, name: objData.name }, objData.keyframes || [], objData.note);
+                            restoreImportedObjectTrackVisibility(newObj, objData.trackVisible);
+                        } else if (objectType === BLOCK_TYPE) {
+                            const newObj = addBlockObject(objData.blockData || {}, objData.note, objData.name || '方形圖塊');
                             newObj.keyframes = (objData.keyframes || []).map(normalizeKeyframe);
+                            restoreImportedObjectTrackVisibility(newObj, objData.trackVisible);
+                        } else {
+                            const resolvedImage = await resolveImportedImageSource(objData);
+                            const newObj = addNewObject(
+                                objData.name,
+                                resolvedImage.displaySrc,
+                                objData.note,
+                                resolvedImage.storedSrc,
+                                resolvedImage.assetPath
+                            );
+                            newObj.keyframes = (objData.keyframes || []).map(normalizeKeyframe);
+                            restoreImportedObjectTrackVisibility(newObj, objData.trackVisible);
                         }
                     }
 
@@ -2310,6 +4175,595 @@
             };
             reader.readAsText(file);
         });
+
+        /*
+        async function writeProjectFileWithHandle(fileHandle, dataStr, statusText) {
+            const allowed = await ensureHandlePermission(fileHandle, 'readwrite', true);
+            if (!allowed) throw new Error('未取得檔案寫入權限。');
+            const writable = await fileHandle.createWritable();
+            await writable.write(dataStr);
+            await writable.close();
+            await setCurrentProjectHandle(fileHandle, fileHandle.name);
+            lastAutoBackupSnapshot = dataStr;
+            updateSaveStatus(statusText);
+        }
+
+        function buildProjectPayloadV2() {
+            const exportData = animObjects.map(obj => ({
+                name: obj.name,
+                note: normalizeObjectNote(obj.note),
+                trackVisible: obj.trackVisible !== false,
+                type: obj.type || IMAGE_TYPE,
+                src: obj.type === IMAGE_TYPE ? obj.src : undefined,
+                assetPath: obj.type === IMAGE_TYPE ? normalizePath(obj.assetPath || buildDefaultAssetPath(obj.name)) : undefined,
+                blockData: obj.type === BLOCK_TYPE ? normalizeBlockData(obj.blockData) : undefined,
+                spineData: obj.type === SPINE_TYPE ? {
+                    editorVersion: obj.spineData.editorVersion,
+                    skeletonPath: obj.spineData.skeletonPath,
+                    atlasPath: obj.spineData.atlasPath,
+                    rawData: obj.spineData.rawData,
+                    animationName: obj.spineData.animationName,
+                    animationNames: obj.spineData.animationNames,
+                    animationDuration: obj.spineData.animationDuration,
+                    size: obj.spineData.size
+                } : undefined,
+                keyframes: obj.keyframes.map(kf => ({
+                    time: parseFloat(kf.time.toFixed(3)),
+                    x: Math.round(kf.x),
+                    y: Math.round(kf.y),
+                    rot: Math.round(kf.rot),
+                    scale: parseFloat(kf.scale.toFixed(2)),
+                    opacity: parseFloat(kf.opacity.toFixed(2)),
+                    visible: kf.visible !== false,
+                    tint: normalizeTintHex(kf.tint || DEFAULT_TINT),
+                    tintStrength: parseFloat(getNum(kf.tintStrength, DEFAULT_TINT_STRENGTH).toFixed(2)),
+                    hue: parseFloat(getNum(kf.hue, DEFAULT_HUE).toFixed(2)),
+                    brightness: parseFloat(getNum(kf.brightness, DEFAULT_BRIGHTNESS).toFixed(2)),
+                    contrast: parseFloat(getNum(kf.contrast, DEFAULT_CONTRAST).toFixed(2)),
+                    blendMode: normalizeBlendMode(kf.blendMode)
+                }))
+            }));
+
+            return {
+                project_type: 'PixelAnimator_NLE',
+                version: 6,
+                mask: outputMask.enabled ? { width: outputMask.width, height: outputMask.height } : null,
+                objects: exportData
+            };
+        }
+
+        function serializeProjectDataV2() {
+            return JSON.stringify(buildProjectPayloadV2(), null, 2);
+        }
+
+        function validateImportedProjectDataV2(data) {
+            if (data.project_type !== 'PixelAnimator_NLE') {
+                throw new Error('Unsupported project JSON format.');
+            }
+            if (!Array.isArray(data.objects) || data.objects.length === 0) {
+                throw new Error('This JSON file does not contain any objects.');
+            }
+
+            const isSupportedObject = (obj) => {
+                if (!obj) return false;
+                if ((obj.type || IMAGE_TYPE) === SPINE_TYPE) return !!obj.spineData;
+                if ((obj.type || IMAGE_TYPE) === BLOCK_TYPE) return true;
+                return !!obj.src;
+            };
+            if (!data.objects.every(isSupportedObject)) {
+                throw new Error('The imported JSON contains unsupported object data.');
+            }
+
+            return data.mask && Number.isFinite(data.mask.width) && Number.isFinite(data.mask.height)
+                ? { enabled: true, width: Math.max(1, Math.round(data.mask.width)), height: Math.max(1, Math.round(data.mask.height)) }
+                : { enabled: false, width: outputMask.width, height: outputMask.height };
+        }
+
+        function clearCurrentSceneV2() {
+            if (playState.isPlaying) stopAnimation();
+            animObjects.forEach(obj => {
+                obj.spineElement?.dispose?.();
+                obj.domWrapper?.tintFilterNode?.remove?.();
+                obj.domWrapper?.remove();
+            });
+            animObjects = [];
+            selectedObjectId = null;
+            selectedKeyframeIndex = null;
+            selectedKeyframes = [];
+            updateMultiSelectUI();
+            playhead.style.display = 'none';
+            playState.currentTime = 0;
+        }
+
+        function restoreImportedObjectTrackVisibility(obj, trackVisible) {
+            if (!obj) return;
+            obj.trackVisible = trackVisible !== false;
+            if (obj.domWrapper?.dataset) {
+                obj.domWrapper.dataset.trackVisible = obj.trackVisible ? 'true' : 'false';
+            }
+            applyPoseToDOM(obj.domWrapper, obj.currentPose);
+        }
+
+        async function loadProjectDataFromHandle(data, { fileHandle = null, fileName = '' } = {}) {
+            const importedMask = validateImportedProjectDataV2(data);
+
+            let overwrite = true;
+            if (animObjects.length > 0) {
+                overwrite = confirm(`Import ${data.objects.length} objects and replace the current scene?`);
+            }
+            if (!overwrite) return false;
+
+            clearCurrentSceneV2();
+            outputMask = importedMask;
+            updateCanvasMaskLayout();
+
+            for (const objData of data.objects) {
+                const objectType = objData.type || IMAGE_TYPE;
+                if (objectType === SPINE_TYPE) {
+                    const newObj = await addSpineObject({ ...objData.spineData, name: objData.name }, objData.keyframes || [], objData.note);
+                    restoreImportedObjectTrackVisibility(newObj, objData.trackVisible);
+                } else if (objectType === BLOCK_TYPE) {
+                    const newObj = addBlockObject(objData.blockData || {}, objData.note, objData.name || 'Block');
+                    newObj.keyframes = (objData.keyframes || []).map(normalizeKeyframe);
+                    restoreImportedObjectTrackVisibility(newObj, objData.trackVisible);
+                } else {
+                    const resolvedImage = await resolveImportedImageSource(objData);
+                    const newObj = addNewObject(
+                        objData.name,
+                        resolvedImage.displaySrc,
+                        objData.note,
+                        resolvedImage.storedSrc,
+                        resolvedImage.assetPath
+                    );
+                    newObj.keyframes = (objData.keyframes || []).map(normalizeKeyframe);
+                    restoreImportedObjectTrackVisibility(newObj, objData.trackVisible);
+                }
+            }
+
+            btnPlay.disabled = animObjects.length === 0;
+            updateUIState();
+            await setCurrentProjectHandle(fileHandle, fileName);
+            lastAutoBackupSnapshot = serializeProjectDataV2();
+            updateSaveStatus(fileName ? `已載入 ${fileName}` : '已載入工程');
+            return true;
+        }
+
+        async function saveProjectDirect() {
+            if (animObjects.length === 0) {
+                alert('No project data to export.');
+                return;
+            }
+
+            if (!window.showDirectoryPicker || !currentProjectFileHandle) {
+                await saveProjectAs();
+                return;
+            }
+
+            try {
+                await writeProjectFileWithHandle(currentProjectFileHandle, serializeProjectDataV2(), '已直接存檔');
+            } catch (err) {
+                alert(`Direct save failed: ${err.message}`);
+            }
+        }
+
+        async function saveProjectAs() {
+            if (animObjects.length === 0) {
+                alert('No project data to export.');
+                return;
+            }
+
+            const suggestedName = sanitizeProjectFileName(currentProjectFileName || 'animation_project.json') || 'animation_project.json';
+            const dataStr = serializeProjectDataV2();
+
+            if (!window.showDirectoryPicker) {
+                const fallbackName = sanitizeProjectFileName(prompt('Save file name', suggestedName));
+                if (!fallbackName) return;
+                downloadProjectJson(dataStr, fallbackName);
+                currentProjectFileName = fallbackName;
+                lastAutoBackupSnapshot = dataStr;
+                updateSaveStatus('已下載 JSON');
+                return;
+            }
+
+            try {
+                const directoryHandle = await ensureSaveDirectoryHandle({ promptUser: true, writeAccess: true });
+                if (!directoryHandle) return;
+
+                const inputName = prompt('另存新檔名稱', suggestedName);
+                if (inputName === null) return;
+                const fileName = sanitizeProjectFileName(inputName);
+                if (!fileName) {
+                    alert('請輸入有效的檔名。');
+                    return;
+                }
+
+                let shouldOverwrite = true;
+                try {
+                    await directoryHandle.getFileHandle(fileName);
+                    shouldOverwrite = confirm(`${fileName} 已存在，要覆寫嗎？`);
+                } catch (err) {
+                    shouldOverwrite = true;
+                }
+                if (!shouldOverwrite) return;
+
+                const fileHandle = await directoryHandle.getFileHandle(fileName, { create: true });
+                await writeProjectFileWithHandle(fileHandle, dataStr, '已另存新檔');
+            } catch (err) {
+                alert(`Save as failed: ${err.message}`);
+            }
+        }
+
+        async function loadProjectFromHandle(fileHandle) {
+            try {
+                const allowed = await ensureHandlePermission(fileHandle, 'read', true);
+                if (!allowed) throw new Error('未取得檔案讀取權限。');
+                const file = await fileHandle.getFile();
+                const data = JSON.parse(await file.text());
+                const loaded = await loadProjectDataFromHandle(data, { fileHandle, fileName: file.name });
+                if (loaded) closeProjectFileModal();
+            } catch (err) {
+                alert(`Project load failed: ${err.message}`);
+            }
+        }
+
+        async function runAutoBackup() {
+            if (animObjects.length === 0 || !window.showDirectoryPicker) return;
+
+            const snapshot = serializeProjectDataV2();
+            if (!snapshot || snapshot === lastAutoBackupSnapshot) return;
+
+            const directoryHandle = await ensureSaveDirectoryHandle({ promptUser: false, writeAccess: true });
+            if (!directoryHandle) {
+                updateSaveStatus('自動備份等待資料夾授權');
+                return;
+            }
+
+            const backupDirectory = await directoryHandle.getDirectoryHandle(AUTO_BACKUP_FOLDER_NAME, { create: true });
+            const backupName = `${sanitizeProjectStem(currentProjectFileName || 'animation_project')}_backup_${formatTimestampForFileName()}.json`;
+            const backupHandle = await backupDirectory.getFileHandle(backupName, { create: true });
+            const writable = await backupHandle.createWritable();
+            await writable.write(snapshot);
+            await writable.close();
+
+            const backups = [];
+            for await (const entry of backupDirectory.values()) {
+                if (entry.kind !== 'file' || !entry.name.toLowerCase().endsWith('.json')) continue;
+                const file = await entry.getFile();
+                backups.push({ name: entry.name, lastModified: file.lastModified });
+            }
+            backups.sort((a, b) => b.lastModified - a.lastModified);
+            for (const backup of backups.slice(MAX_AUTO_BACKUPS)) {
+                await backupDirectory.removeEntry(backup.name);
+            }
+
+            lastAutoBackupSnapshot = snapshot;
+            updateSaveStatus(`已自動備份 ${backupName}`);
+        }
+
+        function importProjectJSON() {
+            if (window.showDirectoryPicker) {
+                refreshProjectFileList();
+                return;
+            }
+            jsonImportInput.click();
+        }
+
+        function exportProjectJSON() {
+            saveProjectDirect();
+        }
+
+        jsonImportInput.addEventListener('change', (e) => {
+            const file = e.target.files?.[0];
+            if (file) currentProjectFileName = file.name;
+        }, true);
+
+        async function initializeProjectFileSystem() {
+            if (window.showDirectoryPicker) {
+                saveDirectoryHandle = await readStoredHandle(SAVE_DIRECTORY_HANDLE_KEY);
+                currentProjectFileHandle = await readStoredHandle(CURRENT_PROJECT_HANDLE_KEY);
+                if (currentProjectFileHandle?.name) currentProjectFileName = currentProjectFileHandle.name;
+                updateSaveStatus('每 5 分鐘自動備份');
+            } else {
+                updateSaveStatus('目前瀏覽器僅支援下載/上傳 JSON');
+            }
+            startAutoBackupTimer();
+        }
+
+        initializeProjectFileSystem();
+        */
+
+        async function writeProjectFileWithHandle(fileHandle, dataStr, statusText) {
+            const allowed = await ensureHandlePermission(fileHandle, 'readwrite', true);
+            if (!allowed) throw new Error('Write permission was not granted.');
+            const writable = await fileHandle.createWritable();
+            await writable.write(dataStr);
+            await writable.close();
+            await setCurrentProjectHandle(fileHandle, fileHandle.name);
+            lastAutoBackupSnapshot = dataStr;
+            updateSaveStatus(statusText);
+        }
+
+        function buildProjectPayloadV2() {
+            const exportData = animObjects.map(obj => ({
+                name: obj.name,
+                note: normalizeObjectNote(obj.note),
+                trackVisible: obj.trackVisible !== false,
+                type: obj.type || IMAGE_TYPE,
+                src: obj.type === IMAGE_TYPE ? obj.src : undefined,
+                assetPath: obj.type === IMAGE_TYPE ? normalizePath(obj.assetPath || buildDefaultAssetPath(obj.name)) : undefined,
+                blockData: obj.type === BLOCK_TYPE ? normalizeBlockData(obj.blockData) : undefined,
+                spineData: obj.type === SPINE_TYPE ? {
+                    editorVersion: obj.spineData.editorVersion,
+                    skeletonPath: obj.spineData.skeletonPath,
+                    atlasPath: obj.spineData.atlasPath,
+                    rawData: obj.spineData.rawData,
+                    animationName: obj.spineData.animationName,
+                    animationNames: obj.spineData.animationNames,
+                    animationDuration: obj.spineData.animationDuration,
+                    size: obj.spineData.size
+                } : undefined,
+                keyframes: obj.keyframes.map(kf => ({
+                    time: parseFloat(kf.time.toFixed(3)),
+                    x: Math.round(kf.x),
+                    y: Math.round(kf.y),
+                    rot: Math.round(kf.rot),
+                    scale: parseFloat(kf.scale.toFixed(2)),
+                    opacity: parseFloat(kf.opacity.toFixed(2)),
+                    tint: normalizeTintHex(kf.tint || DEFAULT_TINT),
+                    tintStrength: parseFloat(getNum(kf.tintStrength, DEFAULT_TINT_STRENGTH).toFixed(2)),
+                    hue: parseFloat(getNum(kf.hue, DEFAULT_HUE).toFixed(2)),
+                    brightness: parseFloat(getNum(kf.brightness, DEFAULT_BRIGHTNESS).toFixed(2)),
+                    contrast: parseFloat(getNum(kf.contrast, DEFAULT_CONTRAST).toFixed(2)),
+                    blendMode: normalizeBlendMode(kf.blendMode)
+                }))
+            }));
+
+            return {
+                project_type: 'PixelAnimator_NLE',
+                version: 6,
+                mask: outputMask.enabled ? { width: outputMask.width, height: outputMask.height } : null,
+                objects: exportData
+            };
+        }
+
+        function serializeProjectDataV2() {
+            return JSON.stringify(buildProjectPayloadV2(), null, 2);
+        }
+
+        function validateImportedProjectDataV2(data) {
+            if (data.project_type !== 'PixelAnimator_NLE') {
+                throw new Error('Unsupported project JSON format.');
+            }
+            if (!Array.isArray(data.objects) || data.objects.length === 0) {
+                throw new Error('This JSON file does not contain any objects.');
+            }
+
+            const isSupportedObject = (obj) => {
+                if (!obj) return false;
+                if ((obj.type || IMAGE_TYPE) === SPINE_TYPE) return !!obj.spineData;
+                if ((obj.type || IMAGE_TYPE) === BLOCK_TYPE) return true;
+                return !!obj.src;
+            };
+            if (!data.objects.every(isSupportedObject)) {
+                throw new Error('The imported JSON contains unsupported object data.');
+            }
+
+            return data.mask && Number.isFinite(data.mask.width) && Number.isFinite(data.mask.height)
+                ? { enabled: true, width: Math.max(1, Math.round(data.mask.width)), height: Math.max(1, Math.round(data.mask.height)) }
+                : { enabled: false, width: outputMask.width, height: outputMask.height };
+        }
+
+        function clearCurrentSceneV2() {
+            if (playState.isPlaying) stopAnimation();
+            animObjects.forEach(obj => {
+                obj.spineElement?.dispose?.();
+                obj.domWrapper?.tintFilterNode?.remove?.();
+                obj.domWrapper?.remove();
+            });
+            animObjects = [];
+            selectedObjectId = null;
+            selectedKeyframeIndex = null;
+            selectedKeyframes = [];
+            updateMultiSelectUI();
+            playhead.style.display = 'none';
+            playState.currentTime = 0;
+        }
+
+        function restoreImportedObjectTrackVisibility(obj, trackVisible) {
+            if (!obj) return;
+            obj.trackVisible = trackVisible !== false;
+            if (obj.domWrapper?.dataset) {
+                obj.domWrapper.dataset.trackVisible = obj.trackVisible ? 'true' : 'false';
+            }
+            applyPoseToDOM(obj.domWrapper, obj.currentPose);
+        }
+
+        async function loadProjectDataFromHandle(data, { fileHandle = null, fileName = '' } = {}) {
+            const importedMask = validateImportedProjectDataV2(data);
+
+            let overwrite = true;
+            if (animObjects.length > 0) {
+                overwrite = confirm(`Import ${data.objects.length} objects and replace the current scene?`);
+            }
+            if (!overwrite) return false;
+
+            clearCurrentSceneV2();
+            outputMask = importedMask;
+            updateCanvasMaskLayout();
+
+            for (const objData of data.objects) {
+                const objectType = objData.type || IMAGE_TYPE;
+                if (objectType === SPINE_TYPE) {
+                    const newObj = await addSpineObject({ ...objData.spineData, name: objData.name }, objData.keyframes || [], objData.note);
+                    restoreImportedObjectTrackVisibility(newObj, objData.trackVisible);
+                } else if (objectType === BLOCK_TYPE) {
+                    const newObj = addBlockObject(objData.blockData || {}, objData.note, objData.name || 'Block');
+                    newObj.keyframes = (objData.keyframes || []).map(normalizeKeyframe);
+                    restoreImportedObjectTrackVisibility(newObj, objData.trackVisible);
+                } else {
+                    const resolvedImage = await resolveImportedImageSource(objData);
+                    const newObj = addNewObject(
+                        objData.name,
+                        resolvedImage.displaySrc,
+                        objData.note,
+                        resolvedImage.storedSrc,
+                        resolvedImage.assetPath
+                    );
+                    newObj.keyframes = (objData.keyframes || []).map(normalizeKeyframe);
+                    restoreImportedObjectTrackVisibility(newObj, objData.trackVisible);
+                }
+            }
+
+            btnPlay.disabled = animObjects.length === 0;
+            updateUIState();
+            await setCurrentProjectHandle(fileHandle, fileName);
+            lastAutoBackupSnapshot = serializeProjectDataV2();
+            updateSaveStatus(fileName ? `loaded ${fileName}` : 'project loaded');
+            return true;
+        }
+
+        async function saveProjectDirect() {
+            if (animObjects.length === 0) {
+                alert('No project data to export.');
+                return;
+            }
+
+            if (!window.showDirectoryPicker || !currentProjectFileHandle) {
+                await saveProjectAs();
+                return;
+            }
+
+            try {
+                await writeProjectFileWithHandle(currentProjectFileHandle, serializeProjectDataV2(), 'saved');
+            } catch (err) {
+                alert(`Direct save failed: ${err.message}`);
+            }
+        }
+
+        async function saveProjectAs() {
+            if (animObjects.length === 0) {
+                alert('No project data to export.');
+                return;
+            }
+
+            const suggestedName = sanitizeProjectFileName(currentProjectFileName || 'animation_project.json') || 'animation_project.json';
+            const dataStr = serializeProjectDataV2();
+
+            if (!window.showDirectoryPicker) {
+                const fallbackName = sanitizeProjectFileName(prompt('Save file name', suggestedName));
+                if (!fallbackName) return;
+                downloadProjectJson(dataStr, fallbackName);
+                currentProjectFileName = fallbackName;
+                lastAutoBackupSnapshot = dataStr;
+                updateSaveStatus('downloaded JSON');
+                return;
+            }
+
+            try {
+                const directoryHandle = await ensureSaveDirectoryHandle({ promptUser: true, writeAccess: true });
+                if (!directoryHandle) return;
+
+                const inputName = prompt('Save as file name', suggestedName);
+                if (inputName === null) return;
+                const fileName = sanitizeProjectFileName(inputName);
+                if (!fileName) {
+                    alert('Please enter a valid file name.');
+                    return;
+                }
+
+                let shouldOverwrite = true;
+                try {
+                    await directoryHandle.getFileHandle(fileName);
+                    shouldOverwrite = confirm(`${fileName} already exists. Overwrite it?`);
+                } catch (err) {
+                    shouldOverwrite = true;
+                }
+                if (!shouldOverwrite) return;
+
+                const fileHandle = await directoryHandle.getFileHandle(fileName, { create: true });
+                await writeProjectFileWithHandle(fileHandle, dataStr, 'saved as');
+            } catch (err) {
+                alert(`Save as failed: ${err.message}`);
+            }
+        }
+
+        async function loadProjectFromHandle(fileHandle) {
+            try {
+                const allowed = await ensureHandlePermission(fileHandle, 'read', true);
+                if (!allowed) throw new Error('Read permission was not granted.');
+                const file = await fileHandle.getFile();
+                const data = JSON.parse(await file.text());
+                const loaded = await loadProjectDataFromHandle(data, { fileHandle, fileName: file.name });
+                if (loaded) closeProjectFileModal();
+            } catch (err) {
+                alert(`Project load failed: ${err.message}`);
+            }
+        }
+
+        async function runAutoBackup() {
+            if (animObjects.length === 0 || !window.showDirectoryPicker) return;
+
+            const snapshot = serializeProjectDataV2();
+            if (!snapshot || snapshot === lastAutoBackupSnapshot) return;
+
+            const directoryHandle = await ensureSaveDirectoryHandle({ promptUser: false, writeAccess: true });
+            if (!directoryHandle) {
+                updateSaveStatus('backup waiting for folder access');
+                return;
+            }
+
+            const backupDirectory = await directoryHandle.getDirectoryHandle(AUTO_BACKUP_FOLDER_NAME, { create: true });
+            const backupName = `${sanitizeProjectStem(currentProjectFileName || 'animation_project')}_backup_${formatTimestampForFileName()}.json`;
+            const backupHandle = await backupDirectory.getFileHandle(backupName, { create: true });
+            const writable = await backupHandle.createWritable();
+            await writable.write(snapshot);
+            await writable.close();
+
+            const backups = [];
+            for await (const entry of backupDirectory.values()) {
+                if (entry.kind !== 'file' || !entry.name.toLowerCase().endsWith('.json')) continue;
+                const file = await entry.getFile();
+                backups.push({ name: entry.name, lastModified: file.lastModified });
+            }
+            backups.sort((a, b) => b.lastModified - a.lastModified);
+            for (const backup of backups.slice(MAX_AUTO_BACKUPS)) {
+                await backupDirectory.removeEntry(backup.name);
+            }
+
+            lastAutoBackupSnapshot = snapshot;
+            updateSaveStatus(`backup ${backupName}`);
+        }
+
+        function importProjectJSON() {
+            if (window.showDirectoryPicker) {
+                refreshProjectFileList();
+                return;
+            }
+            jsonImportInput.click();
+        }
+
+        function exportProjectJSON() {
+            saveProjectDirect();
+        }
+
+        jsonImportInput.addEventListener('change', (e) => {
+            const file = e.target.files?.[0];
+            if (file) currentProjectFileName = file.name;
+        }, true);
+
+        async function initializeProjectFileSystem() {
+            if (window.showDirectoryPicker) {
+                saveDirectoryHandle = await readStoredHandle(SAVE_DIRECTORY_HANDLE_KEY);
+                currentProjectFileHandle = await readStoredHandle(CURRENT_PROJECT_HANDLE_KEY);
+                if (currentProjectFileHandle?.name) currentProjectFileName = currentProjectFileHandle.name;
+                updateSaveStatus('auto backup every 5 minutes');
+            } else {
+                updateSaveStatus('browser only supports import/export JSON');
+            }
+            startAutoBackupTimer();
+        }
+
+        initializeProjectFileSystem();
     </script>
 </body>
 </html>
