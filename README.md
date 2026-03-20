@@ -1,13 +1,16 @@
 # Cutscene Editor
 
-單檔 HTML 的 2D Cutscene / Timeline 動畫編輯器，支援圖片物件與 Spine skeleton JSON 匯入，可直接在時間軸上編排關鍵幀、播放預覽、匯出 / 匯入專案 JSON。
+單檔 HTML 的 2D Cutscene / Timeline 動畫編輯器，支援圖片、文字物件與 Spine skeleton JSON 匯入，可直接在時間軸上編排關鍵幀、播放預覽、匯出 / 匯入專案 JSON。
 
 ## 目前已支援的功能
 
 - 圖片圖層匯入與管理
+- 文字物件建立與管理
+- FNT Bitmap Font 文字匯入
 - Spine 資料夾匯入
 - Block 物件建立與管理
 - 物件屬性編輯：`X / Y / Rotation / Scale / Opacity`
+- 文字屬性編輯：`Content / Size / Line Height / Letter Spacing / Align / Color / Font Family`
 - 色彩效果：`Tint / Tint Strength / Hue / Brightness / Contrast`
 - 混色模式：`Blend Mode`
 - 關鍵幀新增、更新、刪除
@@ -25,6 +28,7 @@
 - Output Mask 預覽
 - 專案 JSON 匯出 / 匯入
 - 專案直接存檔 / 另存新檔
+- 存檔資料夾指定
 - 專案自動備份
 - Spine 動畫切換
 
@@ -43,6 +47,13 @@
 - `.atlas`
 - atlas 對應貼圖
 
+### 文字
+
+- 一般文字物件
+- 系統字型 / 自訂 font-family
+- `FNT` Bitmap Font
+- FNT 對應貼圖：`png / jpg / jpeg / webp`
+
 ## Spine 目前限制
 
 - 目前只支援 `Spine skeleton JSON`，不支援 `.skel` binary。
@@ -59,9 +70,9 @@
 
 ## 基本操作流程
 
-1. 匯入圖片或 Spine 物件
+1. 匯入圖片、文字、FNT 文字或 Spine 物件
 2. 在左側圖層列表選取物件
-3. 在右側調整位置、旋轉、縮放、透明度與色彩效果
+3. 在右側調整位置、旋轉、縮放、透明度、文字或色彩效果
 4. 按 `記錄為新影格` 建立關鍵幀
 5. 在下方時間軸點選關鍵幀進入編輯
 6. 再次調整右側數值後，按 `更新影格`
@@ -82,6 +93,17 @@
 - `Brightness`
 - `Contrast`
 - `Blend Mode`
+
+### 文字物件可編輯內容
+
+- `Text Content`
+- `Font Size`
+- `Line Height`
+- `Letter Spacing`
+- `Align`
+- `Color`
+- `Font Family`
+- `Bitmap Font`
 
 ### Blend Mode
 
@@ -177,11 +199,19 @@
 
 - 按底部 `匯出 JSON`
 - 會輸出 `animation_project.json`
+- 若瀏覽器支援 File System Access API，可直接對目前專案檔存檔
+- 也可以用 `另存新檔` 建立新的專案檔
 
 ### 匯入
 
 - 按底部 `匯入 JSON`
-- 可還原圖片物件、Spine 物件、關鍵幀與效果設定
+- 可還原圖片物件、文字物件、Block 物件、Spine 物件、關鍵幀與效果設定
+- 若瀏覽器支援 File System Access API，可直接從專案檔清單開啟
+
+### 備份
+
+- 可指定專案存檔資料夾
+- 啟用支援後會定期在 `save/backups/` 風格的資料夾結構中保留專案 JSON 快照
 
 ## 專案 JSON 目前會保存的內容
 
@@ -190,6 +220,8 @@
 - 軌道顯示狀態
 - 物件類型
 - 圖片來源或 Spine 資料
+- 文字物件資料
+- Bitmap Font 資料
 - Block 物件資料
 - 每顆關鍵幀的時間
 - 位置 / 旋轉 / 縮放 / 透明度
@@ -218,13 +250,17 @@
 ### 2026-03-20
 
 - 補上 Block 物件，方便做 blocking、版位佔位與純色構圖。
+- 新增文字物件，可直接在畫布中排字幕、標題或 UI 文字。
+- 新增 FNT Bitmap Font 匯入，讓美術字或像素字也能進同一套時間軸流程。
+- 文字物件支援內容、字級、行高、字距、對齊、顏色與字型設定。
 - 圖層列表與時間軸支援註解顯示，讓每個物件用途更容易辨識。
 - 新增軌道顯示切換與軌道重排，讓場景整理更順。
 - 底部時間軸高度可直接拖曳調整，編輯長時間軸時比較舒服。
 - 新增 Output Mask 預覽，可先用指定輸出尺寸檢查構圖。
-- 專案存檔流程升級為直接存檔、另存新檔與專案檔清單操作。
+- 專案存檔流程升級為直接存檔、另存新檔、存檔資料夾指定與專案檔清單操作。
 - 新增自動備份機制，會定期保留專案 JSON 快照。
-- 專案格式升級到 `version 6`，同步保存圖層註解、軌道顯示、Block 物件與 Output Mask。
+- 補強 JSON 匯入流程，讓不支援 File System Access API 的情況也能直接載入專案檔。
+- 專案格式升級到 `version 6`，同步保存圖層註解、軌道顯示、文字物件、Bitmap Font、Block 物件與 Output Mask。
 
 ## 備註
 

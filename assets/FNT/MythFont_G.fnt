@@ -1,0 +1,22 @@
+<font>
+  <info face="MythFont_G" size="60" />
+  <common lineHeight="60" base="60" scaleW="1280" scaleH="1280" pages="1" />
+  <pages>
+    <page id="0" file="MythFont_G_0.png" />
+  </pages>
+  <chars count="13">
+    <char id="48" x="0" y="0" width="40" height="60" xoffset="0" yoffset="0" xadvance="40" page="0" />
+    <char id="49" x="40" y="0" width="23" height="60" xoffset="0" yoffset="0" xadvance="23" page="0" />
+    <char id="50" x="63" y="0" width="36" height="60" xoffset="0" yoffset="0" xadvance="36" page="0" />
+    <char id="51" x="99" y="0" width="34" height="60" xoffset="0" yoffset="0" xadvance="34" page="0" />
+    <char id="52" x="133" y="0" width="38" height="60" xoffset="0" yoffset="0" xadvance="38" page="0" />
+    <char id="53" x="171" y="0" width="35" height="60" xoffset="0" yoffset="0" xadvance="35" page="0" />
+    <char id="54" x="206" y="0" width="38" height="60" xoffset="0" yoffset="0" xadvance="38" page="0" />
+    <char id="55" x="244" y="0" width="36" height="60" xoffset="0" yoffset="0" xadvance="36" page="0" />
+    <char id="56" x="280" y="0" width="39" height="60" xoffset="0" yoffset="0" xadvance="39" page="0" />
+    <char id="57" x="319" y="0" width="38" height="60" xoffset="0" yoffset="0" xadvance="38" page="0" />
+    <char id="44" x="357" y="0" width="15" height="60" xoffset="0" yoffset="0" xadvance="15" page="0" />
+    <char id="46" x="372" y="0" width="15" height="60" xoffset="0" yoffset="0" xadvance="15" page="0" />
+    <char id="215" x="387" y="0" width="46" height="60" xoffset="0" yoffset="0" xadvance="46" page="0" />
+  </chars>
+</font>

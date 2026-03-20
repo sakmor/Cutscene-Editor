@@ -74,11 +74,33 @@
         .anim-object-wrapper.block-object .anim-object-content {
             display: block;
         }
+        .anim-object-wrapper.text-object .anim-object-content {
+            display: block;
+        }
         .shape-block {
             width: 160px;
             height: 160px;
             background: #ffffff;
             box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+            pointer-events: none;
+        }
+        .text-object-surface {
+            position: relative;
+            display: inline-block;
+            min-width: 1px;
+            min-height: 1px;
+            white-space: pre-wrap;
+            word-break: break-word;
+            pointer-events: none;
+        }
+        .text-object-surface.bitmap-mode {
+            white-space: normal;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+        .text-object-glyph {
+            position: absolute;
+            background-repeat: no-repeat;
             pointer-events: none;
         }
 
@@ -177,7 +199,7 @@
             background: #444; color: white; border: 1px solid #555; border-radius: 3px; cursor: pointer; font-weight: bold;
         }
         .btn-add-obj:hover { background: #555; }
-        #file-input, #spine-input { position: absolute; right: 0; top: 0; font-size: 100px; opacity: 0; cursor: pointer; }
+        #file-input, #spine-input, .object-file-input { position: absolute; right: 0; top: 0; font-size: 100px; opacity: 0; cursor: pointer; }
 
         /* 快門與更新按鈕 */
         .btn-snapshot {
@@ -881,6 +903,13 @@
         const DEFAULT_BLEND_MODE = 'normal';
         const DEFAULT_BLOCK_SIZE = 160;
         const DEFAULT_BLOCK_COLOR = '#ffffff';
+        const DEFAULT_TEXT_CONTENT = 'New Text';
+        const DEFAULT_TEXT_SIZE = 72;
+        const DEFAULT_TEXT_LINE_HEIGHT = 86;
+        const DEFAULT_TEXT_COLOR = '#ffffff';
+        const DEFAULT_TEXT_FONT_FAMILY = 'Arial, sans-serif';
+        const DEFAULT_TEXT_ALIGN = 'center';
+        const DEFAULT_TEXT_LETTER_SPACING = 0;
         const DEFAULT_POSE = {
             x: 0, y: 0, rot: 0, scale: 1, opacity: 1, visible: true,
             tint: DEFAULT_TINT, tintStrength: DEFAULT_TINT_STRENGTH,
@@ -890,6 +919,7 @@
         const DEFAULT_SPINE_SIZE = 320;
         const IMAGE_TYPE = 'image';
         const BLOCK_TYPE = 'block';
+        const TEXT_TYPE = 'text';
         const SPINE_TYPE = 'spine';
         const spineRuntimeState = { loadedVersion: null, loadingVersion: null, promise: null };
         const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -950,6 +980,19 @@
         let blockPanel = null;
         let blockSizeInput = null;
         let blockColorInput = null;
+        let textPanel = null;
+        let textContentInput = null;
+        let textSizeInput = null;
+        let textLineHeightInput = null;
+        let textLetterSpacingInput = null;
+        let textAlignInput = null;
+        let textColorInput = null;
+        let textFontFamilyInput = null;
+        let textBitmapFontStatus = null;
+        let textImportFontButton = null;
+        let textClearFontButton = null;
+        let textBitmapFontInput = null;
+        let textBitmapFontTarget = { mode: 'create', objId: null };
         let saveStatusEl = null;
         let projectFileModal = null;
         let projectFileModalSubtitle = null;
@@ -1030,6 +1073,96 @@
             size: clamp(getNum(blockData.size, DEFAULT_BLOCK_SIZE), 4, 4096),
             color: normalizeTintHex(blockData.color || DEFAULT_BLOCK_COLOR)
         });
+        const TEXT_ALIGN_OPTIONS = new Set(['left', 'center', 'right']);
+        const normalizeTextAlign = (align) => {
+            const value = String(align || DEFAULT_TEXT_ALIGN).trim().toLowerCase();
+            return TEXT_ALIGN_OPTIONS.has(value) ? value : DEFAULT_TEXT_ALIGN;
+        };
+        const guessMimeTypeFromFilename = (name) => {
+            const lower = String(name || '').toLowerCase();
+            if (lower.endsWith('.png')) return 'image/png';
+            if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+            if (lower.endsWith('.webp')) return 'image/webp';
+            if (lower.endsWith('.gif')) return 'image/gif';
+            return 'application/octet-stream';
+        };
+        const cloneBitmapFontData = (fontData = null) => {
+            if (!fontData) return null;
+            const pages = {};
+            Object.entries(fontData.pages || {}).forEach(([id, page]) => {
+                pages[String(id)] = {
+                    id: getNum(page?.id ?? id, 0),
+                    file: String(page?.file || ''),
+                    assetPath: normalizePath(page?.assetPath || page?.file || ''),
+                    mimeType: String(page?.mimeType || guessMimeTypeFromFilename(page?.file || '')),
+                    src: String(page?.src || '')
+                };
+            });
+            const chars = {};
+            Object.entries(fontData.chars || {}).forEach(([id, charData]) => {
+                chars[String(id)] = {
+                    id: getNum(charData?.id ?? id, 0),
+                    x: getNum(charData?.x, 0),
+                    y: getNum(charData?.y, 0),
+                    width: Math.max(0, getNum(charData?.width, 0)),
+                    height: Math.max(0, getNum(charData?.height, 0)),
+                    xoffset: getNum(charData?.xoffset, 0),
+                    yoffset: getNum(charData?.yoffset, 0),
+                    xadvance: getNum(charData?.xadvance, 0),
+                    page: getNum(charData?.page, 0),
+                    chnl: getNum(charData?.chnl, 0)
+                };
+            });
+            const kernings = {};
+            Object.entries(fontData.kernings || {}).forEach(([pair, amount]) => {
+                kernings[String(pair)] = getNum(amount, 0);
+            });
+            return {
+                name: String(fontData.name || 'Bitmap Font'),
+                sourcePath: normalizePath(fontData.sourcePath || ''),
+                lineHeight: Math.max(1, getNum(fontData.lineHeight, DEFAULT_TEXT_SIZE)),
+                base: Math.max(0, getNum(fontData.base, 0)),
+                scaleW: Math.max(1, getNum(fontData.scaleW, 1)),
+                scaleH: Math.max(1, getNum(fontData.scaleH, 1)),
+                pages,
+                chars,
+                kernings
+            };
+        };
+        const normalizeTextData = (textData = {}) => {
+            const bitmapFont = cloneBitmapFontData(textData.bitmapFont || null);
+            const defaultSize = bitmapFont ? bitmapFont.lineHeight : DEFAULT_TEXT_SIZE;
+            const size = clamp(getNum(textData.size ?? textData.fontSize, defaultSize), 4, 1024);
+            const defaultLineHeight = bitmapFont ? size : Math.round(size * 1.2);
+            return {
+                text: String(textData.text ?? DEFAULT_TEXT_CONTENT).replace(/\r\n/g, '\n'),
+                size,
+                lineHeight: clamp(getNum(textData.lineHeight, defaultLineHeight), 4, 2048),
+                letterSpacing: clamp(getNum(textData.letterSpacing, DEFAULT_TEXT_LETTER_SPACING), -128, 256),
+                color: normalizeTintHex(textData.color || DEFAULT_TEXT_COLOR),
+                fontFamily: String(textData.fontFamily || DEFAULT_TEXT_FONT_FAMILY).trim() || DEFAULT_TEXT_FONT_FAMILY,
+                align: normalizeTextAlign(textData.align),
+                bitmapFont
+            };
+        };
+        const cloneTextData = (textData = {}) => normalizeTextData(textData);
+        const serializeTextData = (textData = {}) => {
+            const normalized = normalizeTextData(textData);
+            return {
+                text: normalized.text,
+                size: normalized.size,
+                lineHeight: normalized.lineHeight,
+                letterSpacing: normalized.letterSpacing,
+                color: normalized.color,
+                fontFamily: normalized.fontFamily,
+                align: normalized.align,
+                bitmapFont: cloneBitmapFontData(normalized.bitmapFont)
+            };
+        };
+        const buildTextObjectName = (text) => {
+            const preview = String(text || DEFAULT_TEXT_CONTENT).replace(/\s+/g, ' ').trim();
+            return preview ? `Text: ${preview.slice(0, 18)}` : 'Text';
+        };
         const getInputPoseValues = () => ({
             x: getNum(inputs.x.value, 0),
             y: getNum(inputs.y.value, 0),
@@ -1804,6 +1937,346 @@
         });
 
         // --- 縮放功能 ---
+        const parseFntAttributeString = (source = '') => {
+            const attributes = {};
+            const pattern = /([a-zA-Z0-9_]+)=("[^"]*"|[^\s]+)/g;
+            let match;
+            while ((match = pattern.exec(source)) !== null) {
+                const [, key, rawValue] = match;
+                attributes[key] = rawValue.startsWith('"') ? rawValue.slice(1, -1) : rawValue;
+            }
+            return attributes;
+        };
+        const buildBitmapFontPageAssetPath = (fontSourcePath, pageFile) => {
+            const normalizedPage = normalizePath(pageFile || '');
+            if (!normalizedPage) return '';
+            if (normalizedPage.includes('/')) return normalizedPage;
+            const normalizedSource = normalizePath(fontSourcePath || '');
+            const lastSlashIndex = normalizedSource.lastIndexOf('/');
+            if (lastSlashIndex < 0) return normalizedPage;
+            return `${normalizedSource.slice(0, lastSlashIndex + 1)}${normalizedPage}`;
+        };
+        const normalizeBitmapFontFromParsedData = (parsedFont, sourcePath = '') => {
+            const pages = {};
+            Object.entries(parsedFont.pages || {}).forEach(([id, page]) => {
+                pages[String(id)] = {
+                    id: getNum(page?.id ?? id, 0),
+                    file: String(page?.file || ''),
+                    assetPath: buildBitmapFontPageAssetPath(sourcePath, page?.file || ''),
+                    mimeType: String(page?.mimeType || guessMimeTypeFromFilename(page?.file || '')),
+                    src: String(page?.src || '')
+                };
+            });
+            const chars = {};
+            Object.entries(parsedFont.chars || {}).forEach(([id, charData]) => {
+                chars[String(id)] = {
+                    id: getNum(charData?.id ?? id, 0),
+                    x: getNum(charData?.x, 0),
+                    y: getNum(charData?.y, 0),
+                    width: Math.max(0, getNum(charData?.width, 0)),
+                    height: Math.max(0, getNum(charData?.height, 0)),
+                    xoffset: getNum(charData?.xoffset, 0),
+                    yoffset: getNum(charData?.yoffset, 0),
+                    xadvance: getNum(charData?.xadvance, 0),
+                    page: getNum(charData?.page, 0),
+                    chnl: getNum(charData?.chnl, 0)
+                };
+            });
+            const kernings = {};
+            Object.entries(parsedFont.kernings || {}).forEach(([pair, amount]) => {
+                kernings[String(pair)] = getNum(amount, 0);
+            });
+            return cloneBitmapFontData({
+                name: parsedFont.name || stripExtension(getFileBaseName(sourcePath)) || 'Bitmap Font',
+                sourcePath,
+                lineHeight: Math.max(1, getNum(parsedFont.lineHeight, DEFAULT_TEXT_SIZE)),
+                base: Math.max(0, getNum(parsedFont.base, 0)),
+                scaleW: Math.max(1, getNum(parsedFont.scaleW, 1)),
+                scaleH: Math.max(1, getNum(parsedFont.scaleH, 1)),
+                pages,
+                chars,
+                kernings
+            });
+        };
+        const parseBitmapFontText = (content, sourcePath = '') => {
+            const parsed = {
+                name: stripExtension(getFileBaseName(sourcePath)),
+                sourcePath,
+                lineHeight: DEFAULT_TEXT_SIZE,
+                base: 0,
+                scaleW: 1,
+                scaleH: 1,
+                pages: {},
+                chars: {},
+                kernings: {}
+            };
+            String(content || '').split(/\r?\n/).forEach((line) => {
+                const trimmed = line.trim();
+                if (!trimmed) return;
+                const spaceIndex = trimmed.indexOf(' ');
+                const keyword = spaceIndex === -1 ? trimmed : trimmed.slice(0, spaceIndex);
+                const attrs = parseFntAttributeString(spaceIndex === -1 ? '' : trimmed.slice(spaceIndex + 1));
+                if (keyword === 'info') {
+                    if (attrs.face) parsed.name = attrs.face;
+                    return;
+                }
+                if (keyword === 'common') {
+                    parsed.lineHeight = Math.max(1, getNum(attrs.lineHeight, parsed.lineHeight));
+                    parsed.base = Math.max(0, getNum(attrs.base, parsed.base));
+                    parsed.scaleW = Math.max(1, getNum(attrs.scaleW, parsed.scaleW));
+                    parsed.scaleH = Math.max(1, getNum(attrs.scaleH, parsed.scaleH));
+                    return;
+                }
+                if (keyword === 'page') {
+                    const pageId = String(getNum(attrs.id, 0));
+                    parsed.pages[pageId] = {
+                        id: getNum(attrs.id, 0),
+                        file: String(attrs.file || '')
+                    };
+                    return;
+                }
+                if (keyword === 'char') {
+                    const charId = String(getNum(attrs.id, -1));
+                    if (charId === '-1') return;
+                    parsed.chars[charId] = {
+                        id: getNum(attrs.id, 0),
+                        x: getNum(attrs.x, 0),
+                        y: getNum(attrs.y, 0),
+                        width: getNum(attrs.width, 0),
+                        height: getNum(attrs.height, 0),
+                        xoffset: getNum(attrs.xoffset, 0),
+                        yoffset: getNum(attrs.yoffset, 0),
+                        xadvance: getNum(attrs.xadvance, 0),
+                        page: getNum(attrs.page, 0),
+                        chnl: getNum(attrs.chnl, 0)
+                    };
+                    return;
+                }
+                if (keyword === 'kerning') {
+                    const first = getNum(attrs.first, -1);
+                    const second = getNum(attrs.second, -1);
+                    if (first < 0 || second < 0) return;
+                    parsed.kernings[`${first}:${second}`] = getNum(attrs.amount, 0);
+                }
+            });
+            return normalizeBitmapFontFromParsedData(parsed, sourcePath);
+        };
+        const parseBitmapFontXml = (content, sourcePath = '') => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(String(content || ''), 'application/xml');
+            if (doc.querySelector('parsererror')) {
+                throw new Error('The .fnt XML file could not be parsed.');
+            }
+            const common = doc.querySelector('common');
+            const parsed = {
+                name: doc.querySelector('info')?.getAttribute('face') || stripExtension(getFileBaseName(sourcePath)),
+                sourcePath,
+                lineHeight: Math.max(1, getNum(common?.getAttribute('lineHeight'), DEFAULT_TEXT_SIZE)),
+                base: Math.max(0, getNum(common?.getAttribute('base'), 0)),
+                scaleW: Math.max(1, getNum(common?.getAttribute('scaleW'), 1)),
+                scaleH: Math.max(1, getNum(common?.getAttribute('scaleH'), 1)),
+                pages: {},
+                chars: {},
+                kernings: {}
+            };
+            doc.querySelectorAll('pages > page').forEach((node) => {
+                const pageId = String(getNum(node.getAttribute('id'), 0));
+                parsed.pages[pageId] = {
+                    id: getNum(node.getAttribute('id'), 0),
+                    file: String(node.getAttribute('file') || '')
+                };
+            });
+            doc.querySelectorAll('chars > char').forEach((node) => {
+                const charId = String(getNum(node.getAttribute('id'), -1));
+                if (charId === '-1') return;
+                parsed.chars[charId] = {
+                    id: getNum(node.getAttribute('id'), 0),
+                    x: getNum(node.getAttribute('x'), 0),
+                    y: getNum(node.getAttribute('y'), 0),
+                    width: getNum(node.getAttribute('width'), 0),
+                    height: getNum(node.getAttribute('height'), 0),
+                    xoffset: getNum(node.getAttribute('xoffset'), 0),
+                    yoffset: getNum(node.getAttribute('yoffset'), 0),
+                    xadvance: getNum(node.getAttribute('xadvance'), 0),
+                    page: getNum(node.getAttribute('page'), 0),
+                    chnl: getNum(node.getAttribute('chnl'), 0)
+                };
+            });
+            doc.querySelectorAll('kernings > kerning').forEach((node) => {
+                const first = getNum(node.getAttribute('first'), -1);
+                const second = getNum(node.getAttribute('second'), -1);
+                if (first < 0 || second < 0) return;
+                parsed.kernings[`${first}:${second}`] = getNum(node.getAttribute('amount'), 0);
+            });
+            return normalizeBitmapFontFromParsedData(parsed, sourcePath);
+        };
+        const parseBitmapFontContent = (content, sourcePath = '') => {
+            const trimmed = String(content || '').trim();
+            if (!trimmed) throw new Error('The .fnt file is empty.');
+            return trimmed.startsWith('<')
+                ? parseBitmapFontXml(trimmed, sourcePath)
+                : parseBitmapFontText(trimmed, sourcePath);
+        };
+        const findBitmapFontPageFile = (files, pageFile, expectedAssetPath = '') => {
+            const expectedName = getFileBaseName(pageFile);
+            const expectedPath = normalizePath(expectedAssetPath || pageFile);
+            return files.find((file) => {
+                const filePath = normalizePath(file.webkitRelativePath || file.name);
+                return filePath === expectedPath
+                    || normalizePath(file.name) === normalizePath(pageFile)
+                    || getFileBaseName(filePath) === expectedName;
+            }) || null;
+        };
+        async function buildBitmapFontData(files) {
+            const fontFile = files.find(file => file.name.toLowerCase().endsWith('.fnt'));
+            if (!fontFile) {
+                throw new Error('FNT import requires a .fnt file.');
+            }
+
+            const sourcePath = normalizePath(fontFile.webkitRelativePath || fontFile.name);
+            const parsedFont = parseBitmapFontContent(await readFileAsText(fontFile), sourcePath);
+            const pageEntries = Object.values(parsedFont.pages || {});
+            if (pageEntries.length === 0) {
+                throw new Error('The .fnt file does not define any texture pages.');
+            }
+
+            for (const page of pageEntries) {
+                const pageFile = findBitmapFontPageFile(files, page.file, page.assetPath);
+                if (!pageFile) {
+                    throw new Error(`Missing bitmap font page image: ${page.file}`);
+                }
+                page.mimeType = guessMimeTypeFromFilename(pageFile.name);
+                page.src = await readFileAsDataURL(pageFile);
+            }
+
+            if (Object.keys(parsedFont.chars || {}).length === 0) {
+                throw new Error('The .fnt file does not contain any character metrics.');
+            }
+
+            return cloneBitmapFontData(parsedFont);
+        }
+        const getBitmapFontKerning = (bitmapFont, firstCode, secondCode) => getNum(bitmapFont?.kernings?.[`${firstCode}:${secondCode}`], 0);
+        function syncTextObjectName(obj) {
+            if (!obj || obj.type !== TEXT_TYPE) return;
+            obj.name = buildTextObjectName(obj.textData?.text);
+        }
+        function renderPlainTextObject(obj) {
+            const textData = normalizeTextData(obj.textData);
+            obj.textData = textData;
+            obj.textElement.innerHTML = '';
+            obj.textElement.classList.remove('bitmap-mode');
+            obj.textElement.textContent = textData.text || ' ';
+            obj.textElement.style.color = textData.color;
+            obj.textElement.style.fontFamily = textData.fontFamily;
+            obj.textElement.style.fontSize = `${textData.size}px`;
+            obj.textElement.style.lineHeight = `${textData.lineHeight}px`;
+            obj.textElement.style.letterSpacing = `${textData.letterSpacing}px`;
+            obj.textElement.style.textAlign = textData.align;
+            obj.textElement.style.width = 'auto';
+            obj.textElement.style.height = 'auto';
+        }
+        function renderBitmapTextObject(obj) {
+            const textData = normalizeTextData(obj.textData);
+            const bitmapFont = textData.bitmapFont;
+            if (!bitmapFont) {
+                renderPlainTextObject(obj);
+                return;
+            }
+
+            obj.textData = textData;
+            obj.textElement.innerHTML = '';
+            obj.textElement.classList.add('bitmap-mode');
+            obj.textElement.style.color = '';
+            obj.textElement.style.fontFamily = '';
+            obj.textElement.style.fontSize = '';
+            obj.textElement.style.lineHeight = '';
+            obj.textElement.style.letterSpacing = '';
+            obj.textElement.style.textAlign = '';
+
+            const fontLineHeight = Math.max(1, getNum(bitmapFont.lineHeight, DEFAULT_TEXT_SIZE));
+            const scale = textData.size / fontLineHeight;
+            const lineAdvance = Math.max(1, getNum(textData.lineHeight, textData.size));
+            const logicalLetterSpacing = scale === 0 ? 0 : (textData.letterSpacing / scale);
+            const lines = String(textData.text || '').replace(/\r\n/g, '\n').split('\n');
+            const fallbackGlyph = bitmapFont.chars?.['63'] || null;
+            const layoutLines = [];
+            let maxWidth = 0;
+
+            lines.forEach((lineText, lineIndex) => {
+                const glyphs = [];
+                let penX = 0;
+                let prevCode = null;
+                let minX = 0;
+                let maxX = 0;
+                Array.from(lineText).forEach((char) => {
+                    const code = char.codePointAt(0);
+                    const glyph = bitmapFont.chars?.[String(code)] || fallbackGlyph;
+                    const kerning = prevCode === null ? 0 : getBitmapFontKerning(bitmapFont, prevCode, code);
+                    penX += kerning;
+                    if (glyph) {
+                        const glyphX = penX + glyph.xoffset;
+                        const glyphRight = glyphX + glyph.width;
+                        minX = Math.min(minX, glyphX);
+                        maxX = Math.max(maxX, glyphRight);
+                        glyphs.push({
+                            page: bitmapFont.pages?.[String(glyph.page)] || null,
+                            x: glyphX,
+                            y: (lineIndex * lineAdvance / scale) + glyph.yoffset,
+                            width: glyph.width,
+                            height: glyph.height,
+                            textureX: glyph.x,
+                            textureY: glyph.y
+                        });
+                        penX += glyph.xadvance;
+                    } else {
+                        penX += fontLineHeight * 0.5;
+                    }
+                    penX += logicalLetterSpacing;
+                    prevCode = code;
+                });
+                const logicalWidth = glyphs.length > 0 ? (maxX - minX) : 0;
+                const scaledWidth = logicalWidth * scale;
+                maxWidth = Math.max(maxWidth, scaledWidth);
+                layoutLines.push({
+                    glyphs,
+                    minX,
+                    width: scaledWidth
+                });
+            });
+
+            const totalHeight = Math.max(
+                textData.size,
+                ((Math.max(lines.length, 1) - 1) * lineAdvance) + textData.size
+            );
+            obj.textElement.style.width = `${Math.max(1, Math.ceil(maxWidth))}px`;
+            obj.textElement.style.height = `${Math.max(1, Math.ceil(totalHeight))}px`;
+
+            layoutLines.forEach((line) => {
+                const alignOffset = textData.align === 'right'
+                    ? (maxWidth - line.width)
+                    : (textData.align === 'center' ? (maxWidth - line.width) / 2 : 0);
+                line.glyphs.forEach((glyph) => {
+                    if (!glyph.page?.src || glyph.width <= 0 || glyph.height <= 0) return;
+                    const glyphEl = document.createElement('div');
+                    glyphEl.className = 'text-object-glyph';
+                    glyphEl.style.left = `${Math.round(alignOffset + ((glyph.x - line.minX) * scale))}px`;
+                    glyphEl.style.top = `${Math.round(glyph.y * scale)}px`;
+                    glyphEl.style.width = `${Math.max(1, Math.round(glyph.width * scale))}px`;
+                    glyphEl.style.height = `${Math.max(1, Math.round(glyph.height * scale))}px`;
+                    glyphEl.style.backgroundImage = `url("${glyph.page.src}")`;
+                    glyphEl.style.backgroundPosition = `-${glyph.textureX * scale}px -${glyph.textureY * scale}px`;
+                    glyphEl.style.backgroundSize = `${bitmapFont.scaleW * scale}px ${bitmapFont.scaleH * scale}px`;
+                    obj.textElement.appendChild(glyphEl);
+                });
+            });
+        }
+        function syncTextElement(obj) {
+            if (!obj?.textElement) return;
+            obj.textData = normalizeTextData(obj.textData);
+            if (obj.textData.bitmapFont) renderBitmapTextObject(obj);
+            else renderPlainTextObject(obj);
+        }
+
         const tintFilterSvg = document.createElementNS(SVG_NS, 'svg');
         tintFilterSvg.setAttribute('width', '0');
         tintFilterSvg.setAttribute('height', '0');
@@ -2154,8 +2627,26 @@
                 blockAddButton.addEventListener('click', () => addBlockObject());
                 blockAddWrapper.appendChild(blockAddButton);
 
+                const textAddWrapper = document.createElement('div');
+                textAddWrapper.className = 'btn-add-obj-wrapper';
+                const textAddButton = document.createElement('button');
+                textAddButton.type = 'button';
+                textAddButton.className = 'btn-add-obj';
+                textAddButton.textContent = '+ 新增文字物件';
+                textAddButton.addEventListener('click', () => addTextObject());
+                textAddWrapper.appendChild(textAddButton);
+
+                const bitmapTextAddWrapper = document.createElement('div');
+                bitmapTextAddWrapper.className = 'btn-add-obj-wrapper';
+                const bitmapTextAddButton = document.createElement('button');
+                bitmapTextAddButton.type = 'button';
+                bitmapTextAddButton.className = 'btn-add-obj';
+                bitmapTextAddButton.textContent = '+ 匯入 FNT 文字';
+                bitmapTextAddButton.addEventListener('click', () => openBitmapFontPicker('create'));
+                bitmapTextAddWrapper.appendChild(bitmapTextAddButton);
+
                 const addPanel = createSidebarSubpanel('layer-add', '新增物件');
-                addPanel.body.append(imageAddWrapper, blockAddWrapper, spineAddWrapper);
+                addPanel.body.append(imageAddWrapper, textAddWrapper, bitmapTextAddWrapper, blockAddWrapper, spineAddWrapper);
 
                 const listPanel = createSidebarSubpanel('layer-list', '圖層清單');
                 listPanel.body.appendChild(layerListContainer);
@@ -2193,7 +2684,63 @@
                 blockSizeInput = blockPanel.querySelector('#prop-block-size');
                 blockColorInput = blockPanel.querySelector('#prop-block-color');
 
-                objectSettingsBody.append(blockPanel, spinePanel);
+                textPanel = document.createElement('div');
+                textPanel.id = 'text-panel';
+                textPanel.style.display = 'none';
+                textPanel.innerHTML = `
+                    <div class="control-group">
+                        <label>文字內容：</label>
+                        <textarea id="prop-text-content" rows="4" placeholder="輸入文字內容"></textarea>
+                    </div>
+                    <div class="control-group">
+                        <label>字體大小：</label>
+                        <input type="number" id="prop-text-size" min="4" step="1" value="${DEFAULT_TEXT_SIZE}">
+                    </div>
+                    <div class="control-group">
+                        <label>行高：</label>
+                        <input type="number" id="prop-text-line-height" min="4" step="1" value="${DEFAULT_TEXT_LINE_HEIGHT}">
+                    </div>
+                    <div class="control-group">
+                        <label>字距：</label>
+                        <input type="number" id="prop-text-letter-spacing" step="1" value="${DEFAULT_TEXT_LETTER_SPACING}">
+                    </div>
+                    <div class="control-group">
+                        <label>對齊：</label>
+                        <select id="prop-text-align">
+                            <option value="left">Left</option>
+                            <option value="center">Center</option>
+                            <option value="right">Right</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>文字顏色：</label>
+                        <input type="color" id="prop-text-color" value="${DEFAULT_TEXT_COLOR}">
+                    </div>
+                    <div class="control-group">
+                        <label>字型：</label>
+                        <input type="text" id="prop-text-font-family" value="${DEFAULT_TEXT_FONT_FAMILY}">
+                    </div>
+                    <div class="control-group">
+                        <label>Bitmap Font：</label>
+                        <div class="inline-action-row">
+                            <button type="button" id="btn-text-import-fnt">Import FNT</button>
+                            <button type="button" id="btn-text-clear-fnt">Clear</button>
+                        </div>
+                        <div id="prop-text-font-status"></div>
+                    </div>
+                `;
+                textContentInput = textPanel.querySelector('#prop-text-content');
+                textSizeInput = textPanel.querySelector('#prop-text-size');
+                textLineHeightInput = textPanel.querySelector('#prop-text-line-height');
+                textLetterSpacingInput = textPanel.querySelector('#prop-text-letter-spacing');
+                textAlignInput = textPanel.querySelector('#prop-text-align');
+                textColorInput = textPanel.querySelector('#prop-text-color');
+                textFontFamilyInput = textPanel.querySelector('#prop-text-font-family');
+                textBitmapFontStatus = textPanel.querySelector('#prop-text-font-status');
+                textImportFontButton = textPanel.querySelector('#btn-text-import-fnt');
+                textClearFontButton = textPanel.querySelector('#btn-text-clear-fnt');
+
+                objectSettingsBody.append(blockPanel, textPanel, spinePanel);
 
                 const outputPanel = createSidebarSubpanel('prop-output', '輸出與遮罩');
                 outputPanel.body.appendChild(maskGroup);
@@ -2341,6 +2888,63 @@
             blockSizeInput.addEventListener('input', handleBlockPropertyChange);
             blockColorInput.addEventListener('input', handleBlockPropertyChange);
         }
+        if (textContentInput && textSizeInput && textLineHeightInput && textLetterSpacingInput && textAlignInput && textColorInput && textFontFamilyInput) {
+            [textContentInput, textSizeInput, textLineHeightInput, textLetterSpacingInput, textAlignInput, textColorInput, textFontFamilyInput].forEach((input) => {
+                input.addEventListener('input', handleTextPropertyChange);
+            });
+        }
+        if (textImportFontButton) {
+            textImportFontButton.addEventListener('click', () => {
+                const targetObj = getSelectedObjectData();
+                if (!targetObj || targetObj.type !== TEXT_TYPE) return;
+                openBitmapFontPicker('update', targetObj.id);
+            });
+        }
+        if (textClearFontButton) {
+            textClearFontButton.addEventListener('click', clearSelectedTextBitmapFont);
+        }
+        textBitmapFontInput = document.createElement('input');
+        textBitmapFontInput.type = 'file';
+        textBitmapFontInput.className = 'object-file-input';
+        textBitmapFontInput.accept = '.fnt,.png,.jpg,.jpeg,.webp';
+        textBitmapFontInput.multiple = true;
+        textBitmapFontInput.style.display = 'none';
+        document.body.appendChild(textBitmapFontInput);
+        textBitmapFontInput.addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files || []);
+            if (files.length === 0) return;
+            try {
+                const bitmapFont = await buildBitmapFontData(files);
+                if (textBitmapFontTarget.mode === 'update') {
+                    const targetObj = animObjects.find(obj => obj.id === textBitmapFontTarget.objId);
+                    if (!targetObj || targetObj.type !== TEXT_TYPE) {
+                        throw new Error('Select a text object before importing a bitmap font.');
+                    }
+                    targetObj.textData = normalizeTextData({
+                        ...targetObj.textData,
+                        bitmapFont,
+                        size: targetObj.textData?.size || bitmapFont.lineHeight,
+                        lineHeight: targetObj.textData?.lineHeight || bitmapFont.lineHeight
+                    });
+                    syncTextElement(targetObj);
+                    syncTextObjectName(targetObj);
+                    if (selectedObjectId === targetObj.id) updateTextPanel(targetObj);
+                    renderObjectList();
+                    updateGlobalTimeline();
+                } else {
+                    addTextObject({
+                        text: DEFAULT_TEXT_CONTENT,
+                        size: bitmapFont.lineHeight,
+                        lineHeight: bitmapFont.lineHeight,
+                        bitmapFont
+                    });
+                }
+            } catch (err) {
+                alert(`FNT import failed: ${err.message}`);
+            }
+            e.target.value = '';
+            textBitmapFontTarget = { mode: 'create', objId: null };
+        });
         applyBottomPanelHeight(loadBottomPanelHeight(), false);
         initializeSidebarSections();
         initializeSidebarSubsections();
@@ -2550,6 +3154,47 @@
             syncBlockElement(targetObj);
         }
 
+        function handleTextPropertyChange() {
+            const targetObj = getSelectedObjectData();
+            if (!targetObj || targetObj.type !== TEXT_TYPE || !textContentInput || !textSizeInput || !textLineHeightInput || !textLetterSpacingInput || !textAlignInput || !textColorInput || !textFontFamilyInput) return;
+            targetObj.textData = normalizeTextData({
+                ...targetObj.textData,
+                text: textContentInput.value,
+                size: textSizeInput.value,
+                lineHeight: textLineHeightInput.value,
+                letterSpacing: textLetterSpacingInput.value,
+                align: textAlignInput.value,
+                color: textColorInput.value,
+                fontFamily: textFontFamilyInput.value
+            });
+            syncTextObjectName(targetObj);
+            syncTextElement(targetObj);
+            updateTextPanel(targetObj);
+            renderObjectList();
+            updateGlobalTimeline();
+        }
+
+        function openBitmapFontPicker(mode = 'create', objId = null) {
+            if (!textBitmapFontInput) return;
+            textBitmapFontTarget = { mode, objId };
+            textBitmapFontInput.value = '';
+            textBitmapFontInput.click();
+        }
+
+        function clearSelectedTextBitmapFont() {
+            const targetObj = getSelectedObjectData();
+            if (!targetObj || targetObj.type !== TEXT_TYPE) return;
+            targetObj.textData = normalizeTextData({
+                ...targetObj.textData,
+                bitmapFont: null
+            });
+            syncTextObjectName(targetObj);
+            syncTextElement(targetObj);
+            updateTextPanel(targetObj);
+            renderObjectList();
+            updateGlobalTimeline();
+        }
+
         layerNoteInput.addEventListener('input', () => {
             const targetObj = getSelectedObjectData();
             if (!targetObj) return;
@@ -2624,6 +3269,34 @@
             };
 
             syncBlockElement(newObj);
+            return finalizeNewObject(newObj);
+        }
+
+        function addTextObject(textData = {}, note = '', name = '') {
+            const normalizedTextData = normalizeTextData(textData);
+            const objId = createObjectId();
+            const wrapper = createObjectWrapper(objId, 'text-object');
+            const textElement = document.createElement('div');
+            textElement.className = 'text-object-surface';
+            (wrapper.contentLayer || wrapper).appendChild(textElement);
+            canvasViewport.appendChild(wrapper);
+
+            applyPoseToDOM(wrapper, DEFAULT_POSE);
+
+            const newObj = {
+                id: objId,
+                type: TEXT_TYPE,
+                name: name || buildTextObjectName(normalizedTextData.text),
+                note: normalizeObjectNote(note),
+                domWrapper: wrapper,
+                textElement,
+                textData: cloneTextData(normalizedTextData),
+                currentPose: clonePose(),
+                keyframes: []
+            };
+
+            syncTextElement(newObj);
+            if (!name) syncTextObjectName(newObj);
             return finalizeNewObject(newObj);
         }
 
@@ -2943,6 +3616,30 @@
             blockColorInput.value = obj.blockData.color;
         }
 
+        function updateTextPanel(obj) {
+            if (!textPanel || !textContentInput || !textSizeInput || !textLineHeightInput || !textLetterSpacingInput || !textAlignInput || !textColorInput || !textFontFamilyInput || !textBitmapFontStatus || !textClearFontButton) return;
+            if (!obj || obj.type !== TEXT_TYPE) {
+                textPanel.style.display = 'none';
+                return;
+            }
+
+            obj.textData = normalizeTextData(obj.textData);
+            textPanel.style.display = 'block';
+            textContentInput.value = obj.textData.text;
+            textSizeInput.value = Math.round(obj.textData.size);
+            textLineHeightInput.value = Math.round(obj.textData.lineHeight);
+            textLetterSpacingInput.value = Math.round(obj.textData.letterSpacing);
+            textAlignInput.value = obj.textData.align;
+            textColorInput.value = obj.textData.color;
+            textFontFamilyInput.value = obj.textData.fontFamily;
+            textBitmapFontStatus.textContent = obj.textData.bitmapFont
+                ? `Bitmap Font: ${obj.textData.bitmapFont.name}`
+                : 'Bitmap Font: none';
+            textColorInput.disabled = !!obj.textData.bitmapFont;
+            textFontFamilyInput.disabled = !!obj.textData.bitmapFont;
+            textClearFontButton.disabled = !obj.textData.bitmapFont;
+        }
+
         function renderObjectList() {
             objectListEl.innerHTML = '';
             for (let i = animObjects.length - 1; i >= 0; i--) {
@@ -2990,8 +3687,9 @@
             const obj = getSelectedObjectData();
             updateSpinePanel(obj);
             updateBlockPanel(obj);
+            updateTextPanel(obj);
             if (objectSettingsPanel) {
-                objectSettingsPanel.style.display = (obj && (obj.type === SPINE_TYPE || obj.type === BLOCK_TYPE)) ? '' : 'none';
+                objectSettingsPanel.style.display = (obj && (obj.type === SPINE_TYPE || obj.type === BLOCK_TYPE || obj.type === TEXT_TYPE)) ? '' : 'none';
             }
             if (obj) {
                 layerNoteInput.disabled = false;
@@ -4019,6 +4717,7 @@
                 src: obj.type === IMAGE_TYPE ? obj.src : undefined,
                 assetPath: obj.type === IMAGE_TYPE ? normalizePath(obj.assetPath || buildDefaultAssetPath(obj.name)) : undefined,
                 blockData: obj.type === BLOCK_TYPE ? normalizeBlockData(obj.blockData) : undefined,
+                textData: obj.type === TEXT_TYPE ? serializeTextData(obj.textData) : undefined,
                 spineData: obj.type === SPINE_TYPE ? {
                     editorVersion: obj.spineData.editorVersion,
                     skeletonPath: obj.spineData.skeletonPath,
@@ -4197,6 +4896,7 @@
                 src: obj.type === IMAGE_TYPE ? obj.src : undefined,
                 assetPath: obj.type === IMAGE_TYPE ? normalizePath(obj.assetPath || buildDefaultAssetPath(obj.name)) : undefined,
                 blockData: obj.type === BLOCK_TYPE ? normalizeBlockData(obj.blockData) : undefined,
+                textData: obj.type === TEXT_TYPE ? serializeTextData(obj.textData) : undefined,
                 spineData: obj.type === SPINE_TYPE ? {
                     editorVersion: obj.spineData.editorVersion,
                     skeletonPath: obj.spineData.skeletonPath,
@@ -4248,6 +4948,7 @@
                 if (!obj) return false;
                 if ((obj.type || IMAGE_TYPE) === SPINE_TYPE) return !!obj.spineData;
                 if ((obj.type || IMAGE_TYPE) === BLOCK_TYPE) return true;
+                if ((obj.type || IMAGE_TYPE) === TEXT_TYPE) return !!obj.textData;
                 return !!obj.src;
             };
             if (!data.objects.every(isSupportedObject)) {
@@ -4304,6 +5005,10 @@
                     restoreImportedObjectTrackVisibility(newObj, objData.trackVisible);
                 } else if (objectType === BLOCK_TYPE) {
                     const newObj = addBlockObject(objData.blockData || {}, objData.note, objData.name || 'Block');
+                    newObj.keyframes = (objData.keyframes || []).map(normalizeKeyframe);
+                    restoreImportedObjectTrackVisibility(newObj, objData.trackVisible);
+                } else if (objectType === TEXT_TYPE) {
+                    const newObj = addTextObject(objData.textData || {}, objData.note, objData.name || buildTextObjectName(objData.textData?.text));
                     newObj.keyframes = (objData.keyframes || []).map(normalizeKeyframe);
                     restoreImportedObjectTrackVisibility(newObj, objData.trackVisible);
                 } else {
@@ -4456,6 +5161,18 @@
             const file = e.target.files?.[0];
             if (file) currentProjectFileName = file.name;
         }, true);
+        jsonImportInput.addEventListener('change', async (e) => {
+            const file = e.target.files?.[0];
+            if (!file || window.showDirectoryPicker) return;
+            e.stopImmediatePropagation();
+            try {
+                const data = JSON.parse(await file.text());
+                await loadProjectDataFromHandle(data, { fileHandle: null, fileName: file.name });
+            } catch (err) {
+                alert(`Project import failed: ${err.message}`);
+            }
+            e.target.value = '';
+        }, true);
 
         async function initializeProjectFileSystem() {
             if (window.showDirectoryPicker) {
@@ -4492,6 +5209,7 @@
                 src: obj.type === IMAGE_TYPE ? obj.src : undefined,
                 assetPath: obj.type === IMAGE_TYPE ? normalizePath(obj.assetPath || buildDefaultAssetPath(obj.name)) : undefined,
                 blockData: obj.type === BLOCK_TYPE ? normalizeBlockData(obj.blockData) : undefined,
+                textData: obj.type === TEXT_TYPE ? serializeTextData(obj.textData) : undefined,
                 spineData: obj.type === SPINE_TYPE ? {
                     editorVersion: obj.spineData.editorVersion,
                     skeletonPath: obj.spineData.skeletonPath,
@@ -4542,6 +5260,7 @@
                 if (!obj) return false;
                 if ((obj.type || IMAGE_TYPE) === SPINE_TYPE) return !!obj.spineData;
                 if ((obj.type || IMAGE_TYPE) === BLOCK_TYPE) return true;
+                if ((obj.type || IMAGE_TYPE) === TEXT_TYPE) return !!obj.textData;
                 return !!obj.src;
             };
             if (!data.objects.every(isSupportedObject)) {
@@ -4598,6 +5317,10 @@
                     restoreImportedObjectTrackVisibility(newObj, objData.trackVisible);
                 } else if (objectType === BLOCK_TYPE) {
                     const newObj = addBlockObject(objData.blockData || {}, objData.note, objData.name || 'Block');
+                    newObj.keyframes = (objData.keyframes || []).map(normalizeKeyframe);
+                    restoreImportedObjectTrackVisibility(newObj, objData.trackVisible);
+                } else if (objectType === TEXT_TYPE) {
+                    const newObj = addTextObject(objData.textData || {}, objData.note, objData.name || buildTextObjectName(objData.textData?.text));
                     newObj.keyframes = (objData.keyframes || []).map(normalizeKeyframe);
                     restoreImportedObjectTrackVisibility(newObj, objData.trackVisible);
                 } else {
@@ -4749,6 +5472,18 @@
         jsonImportInput.addEventListener('change', (e) => {
             const file = e.target.files?.[0];
             if (file) currentProjectFileName = file.name;
+        }, true);
+        jsonImportInput.addEventListener('change', async (e) => {
+            const file = e.target.files?.[0];
+            if (!file || window.showDirectoryPicker) return;
+            e.stopImmediatePropagation();
+            try {
+                const data = JSON.parse(await file.text());
+                await loadProjectDataFromHandle(data, { fileHandle: null, fileName: file.name });
+            } catch (err) {
+                alert(`Project import failed: ${err.message}`);
+            }
+            e.target.value = '';
         }, true);
 
         async function initializeProjectFileSystem() {
