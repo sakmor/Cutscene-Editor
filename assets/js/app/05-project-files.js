@@ -1,3 +1,4 @@
+        /* Legacy project import/export block kept disabled during cleanup.
         function exportProjectJSON() {
             if (animObjects.length === 0) { alert('No project data to export.'); return; }
             const exportData = animObjects.map(obj => ({
@@ -51,6 +52,7 @@
             URL.revokeObjectURL(blobUrl);
         }
 
+        */
         spineInput.addEventListener('change', async function (e) {
             const files = Array.from(e.target.files || []);
             if (files.length === 0) return;
@@ -73,6 +75,7 @@
             syncSpineElementConfig(obj);
         });
 
+        /* Legacy project import/export block kept disabled during cleanup.
         function importProjectJSON() {
             document.getElementById('json-import-input').click();
         }
@@ -164,6 +167,8 @@
             };
             reader.readAsText(file);
         });
+
+        */
 
         /*
         async function writeProjectFileWithHandle(fileHandle, dataStr, statusText) {

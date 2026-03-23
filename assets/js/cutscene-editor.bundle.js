@@ -1567,13 +1567,14 @@
         tintFilterSvg.appendChild(tintFilterDefs);
         document.body.appendChild(tintFilterSvg);
 
-        function getSpineRuntimeVersion(editorVersion) {
+        // Legacy duplicate UI block neutralized during cleanup.
+        function getSpineRuntimeVersionLegacy(editorVersion) {
             const match = String(editorVersion || '').match(/^(\d+\.\d+)/);
             return match ? match[1] : '4.2';
         }
 
-        function ensureSpineRuntime(editorVersion) {
-            const runtimeVersion = getSpineRuntimeVersion(editorVersion);
+        function ensureSpineRuntimeLegacy(editorVersion) {
+            const runtimeVersion = getSpineRuntimeVersionLegacy(editorVersion);
             if (window.customElements?.get('spine-skeleton') && spineRuntimeState.loadedVersion === runtimeVersion) {
                 return Promise.resolve(runtimeVersion);
             }
@@ -1609,7 +1610,7 @@
             return spineRuntimeState.promise;
         }
 
-        function createObjectWrapper(objId, className = '') {
+        function createObjectWrapperLegacy(objId, className = '') {
             const wrapper = document.createElement('div');
             wrapper.className = `anim-object-wrapper${className ? ` ${className}` : ''}`;
             wrapper.id = `obj-wrap-${objId}`;
@@ -1658,7 +1659,7 @@
             return wrapper;
         }
 
-        function finalizeNewObject(newObj) {
+        function finalizeNewObjectLegacy(newObj) {
             newObj.trackVisible = newObj.trackVisible !== false;
             if (newObj.domWrapper?.dataset) {
                 newObj.domWrapper.dataset.trackVisible = newObj.trackVisible ? 'true' : 'false';
@@ -1675,7 +1676,8 @@
             return outputMask.enabled ? canvasZoom * canvasViewportBaseScale : canvasZoom;
         }
 
-        function updateOutputMaskStatus() {
+        // Legacy duplicate output-mask block neutralized during cleanup.
+        function updateOutputMaskStatusLegacy() {
             if (outputMask.enabled) {
                 outputMaskInput.value = `${outputMask.width}x${outputMask.height}`;
                 outputMaskStatus.innerText = `目前遮罩：${outputMask.width} x ${outputMask.height}`;
@@ -1685,12 +1687,12 @@
             }
         }
 
-        function updateCanvasViewportTransform() {
+        function updateCanvasViewportTransformLegacy() {
             canvasViewport.style.transform = `translate(-50%, -50%) scale(${getCanvasDisplayScale()})`;
             zoomDisplay.innerText = `${Math.round(canvasZoom * 100)}%`;
         }
 
-        function updateCanvasMaskLayout() {
+        function updateCanvasMaskLayoutLegacy() {
             const canvasWidth = Math.max(1, canvas.clientWidth);
             const canvasHeight = Math.max(1, canvas.clientHeight);
             let logicalWidth = canvasWidth;
@@ -1723,18 +1725,18 @@
             canvasMaskFrame.style.height = `${frameHeight}px`;
             canvasViewport.style.width = `${logicalWidth}px`;
             canvasViewport.style.height = `${logicalHeight}px`;
-            updateCanvasViewportTransform();
-            updateOutputMaskStatus();
+            updateCanvasViewportTransformLegacy();
+            updateOutputMaskStatusLegacy();
         }
 
-        function applyOutputMask() {
+        function applyOutputMaskLegacy() {
             const parsed = parseOutputMaskValue(outputMaskInput.value);
             if (!parsed) {
                 alert('請輸入像 1920x1080 或 720x480 這樣的尺寸。');
                 return;
             }
             outputMask = { enabled: true, width: parsed.width, height: parsed.height };
-            updateCanvasMaskLayout();
+            updateCanvasMaskLayoutLegacy();
         }
 
         function clearOutputMask() {
@@ -3991,6 +3993,7 @@
             updateHint.style.display = 'block';
         }
 
+        /* Legacy duplicate snapshot block kept disabled during cleanup.
         function recordNewSnapshot() {
             const obj = getSelectedObjectData();
             if (!obj) return;
@@ -4013,6 +4016,7 @@
             centerTimelineOnTime(newTime);
         }
 
+        */
         function recordNewSnapshot() {
             const obj = getSelectedObjectData();
             if (!obj) return;
@@ -4376,7 +4380,7 @@
         });
         */
 
-        function exportProjectJSON() {
+        function exportProjectJSONLegacy() {
             if (animObjects.length === 0) { alert('No project data to export.'); return; }
             const exportData = animObjects.map(obj => ({
                 name: obj.name,
@@ -4451,6 +4455,7 @@
             syncSpineElementConfig(obj);
         });
 
+        /* Legacy project import/export block kept disabled during cleanup.
         function importProjectJSON() {
             document.getElementById('json-import-input').click();
         }
@@ -4542,6 +4547,8 @@
             };
             reader.readAsText(file);
         });
+
+        */
 
         /*
         async function writeProjectFileWithHandle(fileHandle, dataStr, statusText) {

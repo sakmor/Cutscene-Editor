@@ -59,6 +59,29 @@
         function recordNewSnapshot() {
             const obj = getSelectedObjectData();
             if (!obj) return;
+            const newTime = Math.max(0, Math.round((playState.currentTime || 0) * 100) / 100);
+
+            const currentPose = clonePose(obj.currentPose || getInputPoseValues());
+            const existingIndex = obj.keyframes.findIndex(kf => Math.abs(kf.time - newTime) < 0.0001);
+            if (existingIndex >= 0) {
+                obj.keyframes[existingIndex] = { time: newTime, ...currentPose };
+                obj.currentPose = { ...currentPose };
+                selectedKeyframes = [{ objId: obj.id, kfIndex: existingIndex }];
+                enterEditingFrameMode(existingIndex);
+                return;
+            }
+
+            obj.keyframes.push({ time: newTime, ...currentPose });
+            obj.keyframes.sort((a, b) => a.time - b.time);
+            const insertedIndex = obj.keyframes.findIndex(kf => Math.abs(kf.time - newTime) < 0.0001);
+            obj.currentPose = { ...currentPose };
+            selectedKeyframes = insertedIndex >= 0 ? [{ objId: obj.id, kfIndex: insertedIndex }] : [];
+            enterEditingFrameMode(insertedIndex >= 0 ? insertedIndex : obj.keyframes.length - 1);
+        }
+
+        function recordNewSnapshotLegacy() {
+            const obj = getSelectedObjectData();
+            if (!obj) return;
             const interval = Math.max(0, parseFloat(intervalInput.value) || 0);
             let newTime;
             if (obj.keyframes.length === 0) {

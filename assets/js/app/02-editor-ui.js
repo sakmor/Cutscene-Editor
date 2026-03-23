@@ -159,13 +159,13 @@
         tintFilterSvg.appendChild(tintFilterDefs);
         document.body.appendChild(tintFilterSvg);
 
-        function getSpineRuntimeVersion(editorVersion) {
+        function getSpineRuntimeVersionLegacy(editorVersion) {
             const match = String(editorVersion || '').match(/^(\d+\.\d+)/);
             return match ? match[1] : '4.2';
         }
 
-        function ensureSpineRuntime(editorVersion) {
-            const runtimeVersion = getSpineRuntimeVersion(editorVersion);
+        function ensureSpineRuntimeLegacy(editorVersion) {
+            const runtimeVersion = getSpineRuntimeVersionLegacy(editorVersion);
             if (window.customElements?.get('spine-skeleton') && spineRuntimeState.loadedVersion === runtimeVersion) {
                 return Promise.resolve(runtimeVersion);
             }
@@ -201,7 +201,7 @@
             return spineRuntimeState.promise;
         }
 
-        function createObjectWrapper(objId, className = '') {
+        function createObjectWrapperLegacy(objId, className = '') {
             const wrapper = document.createElement('div');
             wrapper.className = `anim-object-wrapper${className ? ` ${className}` : ''}`;
             wrapper.id = `obj-wrap-${objId}`;
@@ -241,11 +241,16 @@
             wrapper.tintOverlay = tintOverlay;
 
             wrapper.addEventListener('mousedown', onObjectMouseDown);
-            wrapper.addEventListener('click', (e) => { e.stopPropagation(); selectObject(objId); });
+            wrapper.addEventListener('click', (e) => {
+                e.stopPropagation();
+                selectObject(objId, {
+                    preserveKeyframeSelection: objId === selectedObjectId
+                });
+            });
             return wrapper;
         }
 
-        function finalizeNewObject(newObj) {
+        function finalizeNewObjectLegacy(newObj) {
             newObj.trackVisible = newObj.trackVisible !== false;
             if (newObj.domWrapper?.dataset) {
                 newObj.domWrapper.dataset.trackVisible = newObj.trackVisible ? 'true' : 'false';
@@ -262,7 +267,7 @@
             return outputMask.enabled ? canvasZoom * canvasViewportBaseScale : canvasZoom;
         }
 
-        function updateOutputMaskStatus() {
+        function updateOutputMaskStatusLegacy() {
             if (outputMask.enabled) {
                 outputMaskInput.value = `${outputMask.width}x${outputMask.height}`;
                 outputMaskStatus.innerText = `目前遮罩：${outputMask.width} x ${outputMask.height}`;
@@ -272,12 +277,12 @@
             }
         }
 
-        function updateCanvasViewportTransform() {
+        function updateCanvasViewportTransformLegacy() {
             canvasViewport.style.transform = `translate(-50%, -50%) scale(${getCanvasDisplayScale()})`;
             zoomDisplay.innerText = `${Math.round(canvasZoom * 100)}%`;
         }
 
-        function updateCanvasMaskLayout() {
+        function updateCanvasMaskLayoutLegacy() {
             const canvasWidth = Math.max(1, canvas.clientWidth);
             const canvasHeight = Math.max(1, canvas.clientHeight);
             let logicalWidth = canvasWidth;
@@ -310,11 +315,11 @@
             canvasMaskFrame.style.height = `${frameHeight}px`;
             canvasViewport.style.width = `${logicalWidth}px`;
             canvasViewport.style.height = `${logicalHeight}px`;
-            updateCanvasViewportTransform();
-            updateOutputMaskStatus();
+            updateCanvasViewportTransformLegacy();
+            updateOutputMaskStatusLegacy();
         }
 
-        function applyOutputMask() {
+        function applyOutputMaskLegacy() {
             const parsed = parseOutputMaskValue(outputMaskInput.value);
             if (!parsed) {
                 alert('請輸入像 1920x1080 或 720x480 這樣的尺寸。');
@@ -885,7 +890,7 @@
         updateCanvasMaskLayout();
         window.addEventListener('resize', () => {
             applyBottomPanelHeight(bottomPanel.getBoundingClientRect().height, false);
-            updateCanvasMaskLayout();
+            updateCanvasMaskLayoutLegacy();
             document.querySelectorAll('.floating-keyframe-panel').forEach(panel => {
                 if (!panel.style.left && !panel.style.top) return;
                 setFloatingPanelPosition(panel, parseFloat(panel.style.left) || 0, parseFloat(panel.style.top) || 0);
