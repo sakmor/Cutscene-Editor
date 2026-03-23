@@ -27,6 +27,7 @@
             return cloneBitmapFontData(parsedFont);
         }
         const getBitmapFontKerning = (bitmapFont, firstCode, secondCode) => getNum(bitmapFont?.kernings?.[`${firstCode}:${secondCode}`], 0);
+        let floatingPanelDrag = { isDragging: false, panelEl: null, offsetX: 0, offsetY: 0 };
         function syncTextObjectName(obj) {
             if (!obj || obj.type !== TEXT_TYPE) return;
             obj.name = buildTextObjectName(obj.textData?.text);
@@ -482,6 +483,57 @@
             return { wrapper, body };
         }
 
+        function clampFloatingPanelPosition(panelEl, left, top) {
+            const maxLeft = Math.max(8, canvas.clientWidth - panelEl.offsetWidth - 8);
+            const maxTop = Math.max(8, canvas.clientHeight - panelEl.offsetHeight - 8);
+            return {
+                left: clamp(left, 8, maxLeft),
+                top: clamp(top, 8, maxTop)
+            };
+        }
+
+        function setFloatingPanelPosition(panelEl, left, top) {
+            if (!panelEl) return;
+            const next = clampFloatingPanelPosition(panelEl, left, top);
+            panelEl.style.left = `${next.left}px`;
+            panelEl.style.top = `${next.top}px`;
+            panelEl.style.right = 'auto';
+            panelEl.style.bottom = 'auto';
+        }
+
+        function stopFloatingPanelDrag() {
+            if (!floatingPanelDrag.isDragging) return;
+            floatingPanelDrag.isDragging = false;
+            floatingPanelDrag.panelEl = null;
+            document.body.classList.remove('is-dragging-floating-panel');
+        }
+
+        function initializeFloatingPanelDrag(panelEl) {
+            if (!panelEl || panelEl.dataset.dragReady === 'true') return;
+
+            const header = panelEl.querySelector('.subpanel-header');
+            if (!header) return;
+
+            header.classList.add('floating-panel-handle');
+            header.addEventListener('mousedown', (e) => {
+                if (e.button !== 0) return;
+                if (e.target.closest('.subsection-toggle')) return;
+
+                const panelRect = panelEl.getBoundingClientRect();
+                const canvasRect = canvas.getBoundingClientRect();
+                setFloatingPanelPosition(panelEl, panelRect.left - canvasRect.left, panelRect.top - canvasRect.top);
+
+                floatingPanelDrag.isDragging = true;
+                floatingPanelDrag.panelEl = panelEl;
+                floatingPanelDrag.offsetX = e.clientX - panelRect.left;
+                floatingPanelDrag.offsetY = e.clientY - panelRect.top;
+                document.body.classList.add('is-dragging-floating-panel');
+                e.preventDefault();
+            });
+
+            panelEl.dataset.dragReady = 'true';
+        }
+
         function setupSidebarSubsections() {
             if (!document.getElementById('sidebar-section-layers')?.dataset.subsectionsReady) {
                 const layersBody = document.getElementById('sidebar-section-layers');
@@ -636,10 +688,13 @@
                 timingPanel.body.appendChild(intervalGroup);
 
                 const actionsPanel = createSidebarSubpanel('snapshot-actions', '影格操作');
+                actionsPanel.wrapper.classList.add('floating-keyframe-panel');
                 actionsPanel.body.append(btnSnapshot, btnDeleteKf, clipboardRow, updateHint);
 
                 snapshotBody.innerHTML = '';
-                snapshotBody.append(timingPanel.wrapper, actionsPanel.wrapper);
+                snapshotBody.append(timingPanel.wrapper);
+                canvas.appendChild(actionsPanel.wrapper);
+                initializeFloatingPanelDrag(actionsPanel.wrapper);
                 snapshotBody.dataset.subsectionsReady = 'true';
             }
         }
@@ -823,6 +878,10 @@
         window.addEventListener('resize', () => {
             applyBottomPanelHeight(bottomPanel.getBoundingClientRect().height, false);
             updateCanvasMaskLayout();
+            document.querySelectorAll('.floating-keyframe-panel').forEach(panel => {
+                if (!panel.style.left && !panel.style.top) return;
+                setFloatingPanelPosition(panel, parseFloat(panel.style.left) || 0, parseFloat(panel.style.top) || 0);
+            });
         });
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && projectFileModalOpen) {
@@ -841,8 +900,19 @@
             const nextHeight = timelinePanelResize.startHeight + (timelinePanelResize.startY - e.clientY);
             applyBottomPanelHeight(nextHeight, false);
         });
+        document.addEventListener('mousemove', (e) => {
+            if (!floatingPanelDrag.isDragging || !floatingPanelDrag.panelEl) return;
+            const canvasRect = canvas.getBoundingClientRect();
+            setFloatingPanelPosition(
+                floatingPanelDrag.panelEl,
+                e.clientX - canvasRect.left - floatingPanelDrag.offsetX,
+                e.clientY - canvasRect.top - floatingPanelDrag.offsetY
+            );
+        });
         document.addEventListener('mouseup', () => stopTimelineResize(true));
         document.addEventListener('mouseleave', () => stopTimelineResize(true));
+        document.addEventListener('mouseup', stopFloatingPanelDrag);
+        document.addEventListener('mouseleave', stopFloatingPanelDrag);
         [outputMaskWidthInput, outputMaskHeightInput].forEach((input) => {
             input.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
@@ -870,6 +940,8 @@
         }
 
         function updatePlayheadPosition() {
+            const timelineContentHeight = Math.max(timelineScrollArea.scrollHeight, timelineScrollArea.clientHeight);
+            playhead.style.height = `${timelineContentHeight}px`;
             playhead.style.left = `${HEADER_WIDTH + timeToTimelineX(playState.currentTime)}px`;
         }
 
