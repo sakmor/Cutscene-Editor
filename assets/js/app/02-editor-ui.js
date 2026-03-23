@@ -688,13 +688,21 @@
                 timingPanel.body.appendChild(intervalGroup);
 
                 const actionsPanel = createSidebarSubpanel('snapshot-actions', '影格操作');
-                actionsPanel.wrapper.classList.add('floating-keyframe-panel');
+                actionsPanel.wrapper.classList.add('floating-keyframe-panel', 'floating-keyframe-actions-panel');
                 actionsPanel.body.append(btnSnapshot, btnDeleteKf, clipboardRow, updateHint);
+
+                const offsetPanel = createSidebarSubpanel('snapshot-offset', '影格 Offset');
+                offsetPanel.wrapper.classList.add('floating-keyframe-panel', 'floating-keyframe-offset-panel');
+                offsetPanel.wrapper.style.display = 'none';
+                offsetPanel.body.appendChild(keyframeOffsetPanel);
+                keyframeOffsetFloatingPanel = offsetPanel.wrapper;
 
                 snapshotBody.innerHTML = '';
                 snapshotBody.append(timingPanel.wrapper);
                 canvas.appendChild(actionsPanel.wrapper);
+                canvas.appendChild(offsetPanel.wrapper);
                 initializeFloatingPanelDrag(actionsPanel.wrapper);
+                initializeFloatingPanelDrag(offsetPanel.wrapper);
                 snapshotBody.dataset.subsectionsReady = 'true';
             }
         }
@@ -1086,6 +1094,17 @@
                 }
             });
         });
+
+        [keyframeOffsetXInput, keyframeOffsetYInput].forEach(input => {
+            if (!input) return;
+            input.addEventListener('input', () => updateKeyframeOffsetUI());
+            input.addEventListener('keydown', (e) => {
+                if (e.key !== 'Enter') return;
+                e.preventDefault();
+                applyOffsetToSelectedKeyframes();
+            });
+        });
+        applyKeyframeOffsetBtn?.addEventListener('click', () => applyOffsetToSelectedKeyframes());
 
         function handleBlockPropertyChange() {
             const targetObj = getSelectedObjectData();

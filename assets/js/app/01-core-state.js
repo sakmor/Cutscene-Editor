@@ -72,6 +72,11 @@
         const layerNoteInput = document.getElementById('layer-note-input');
         const propsPanel = document.getElementById('props-panel');
         const tintPanel = document.getElementById('tint-panel');
+        const keyframeOffsetPanel = document.getElementById('keyframe-offset-panel');
+        const keyframeOffsetXInput = document.getElementById('keyframe-offset-x');
+        const keyframeOffsetYInput = document.getElementById('keyframe-offset-y');
+        const applyKeyframeOffsetBtn = document.getElementById('apply-keyframe-offset-btn');
+        const keyframeOffsetStatus = document.getElementById('keyframe-offset-status');
         const outputMaskWidthInput = document.getElementById('output-mask-width');
         const outputMaskHeightInput = document.getElementById('output-mask-height');
         const outputMaskStatus = document.getElementById('output-mask-status');
@@ -100,6 +105,7 @@
         const multiSelectDisplay = document.getElementById('multi-select-display');
         const timelineZoomSlider = document.getElementById('timeline-zoom-slider');
         const timelineZoomDisplay = document.getElementById('timeline-zoom-display');
+        let keyframeOffsetFloatingPanel = null;
         let objectSettingsPanel = null;
         let blockPanel = null;
         let blockSizeInput = null;

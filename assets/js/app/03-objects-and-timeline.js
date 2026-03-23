@@ -275,6 +275,70 @@
             updateZIndices(); updateUIState();
         }
 
+        function getDuplicatedObjectName(name) {
+            const safeName = String(name || 'Object').trim() || 'Object';
+            const match = safeName.match(/^(.*?)(?:\s+複製(?:\s+(\d+))?)$/);
+            if (!match) return `${safeName} 複製`;
+            const baseName = (match[1] || '').trim() || 'Object';
+            const nextNumber = match[2] ? (Number(match[2]) + 1) : 2;
+            return `${baseName} 複製 ${nextNumber}`;
+        }
+
+        async function duplicateObject(objId) {
+            const sourceObj = animObjects.find(obj => obj.id === objId);
+            if (!sourceObj) return null;
+
+            const duplicatedName = getDuplicatedObjectName(sourceObj.name);
+            const clonedKeyframes = (sourceObj.keyframes || []).map(kf => ({
+                time: getNum(kf.time, 0),
+                ...clonePose(kf)
+            }));
+            let newObj = null;
+
+            if (sourceObj.type === IMAGE_TYPE) {
+                const imageSrc = sourceObj.domWrapper?.querySelector('img')?.src || sourceObj.src;
+                newObj = addNewObject(duplicatedName, imageSrc, sourceObj.note, sourceObj.src, sourceObj.assetPath);
+            } else if (sourceObj.type === BLOCK_TYPE) {
+                newObj = addBlockObject({ ...(sourceObj.blockData || {}) }, sourceObj.note, duplicatedName);
+            } else if (sourceObj.type === TEXT_TYPE) {
+                newObj = addTextObject(cloneTextData(sourceObj.textData || {}), sourceObj.note, duplicatedName);
+            } else if (sourceObj.type === SPINE_TYPE) {
+                newObj = await addSpineObject({
+                    ...(sourceObj.spineData || {}),
+                    name: duplicatedName,
+                    rawData: { ...(sourceObj.spineData?.rawData || {}) },
+                    animationNames: [...(sourceObj.spineData?.animationNames || [])],
+                    size: {
+                        width: sourceObj.spineData?.size?.width || DEFAULT_SPINE_SIZE,
+                        height: sourceObj.spineData?.size?.height || DEFAULT_SPINE_SIZE
+                    }
+                }, clonedKeyframes, sourceObj.note);
+            }
+
+            if (!newObj) return null;
+
+            newObj.note = normalizeObjectNote(sourceObj.note);
+            newObj.keyframes = clonedKeyframes;
+            newObj.currentPose = clonePose(sourceObj.currentPose || DEFAULT_POSE);
+            newObj.trackVisible = sourceObj.trackVisible !== false;
+            if (newObj.domWrapper?.dataset) {
+                newObj.domWrapper.dataset.trackVisible = newObj.trackVisible ? 'true' : 'false';
+            }
+            applyPoseToDOM(newObj.domWrapper, newObj.currentPose);
+
+            const sourceIndex = animObjects.findIndex(obj => obj.id === sourceObj.id);
+            const duplicateIndex = animObjects.findIndex(obj => obj.id === newObj.id);
+            if (sourceIndex >= 0 && duplicateIndex >= 0) {
+                const [duplicatedObj] = animObjects.splice(duplicateIndex, 1);
+                animObjects.splice(Math.min(sourceIndex + 1, animObjects.length), 0, duplicatedObj);
+            }
+
+            updateZIndices();
+            updateUIState();
+            selectObject(newObj.id);
+            return newObj;
+        }
+
         function moveLayerToDisplayInsertionIndex(objId, insertionIndex) {
             const displayObjects = [...animObjects].reverse();
             const sourceIndex = displayObjects.findIndex(obj => obj.id === objId);
@@ -518,6 +582,7 @@
 
             updateClipboardButtons();
             updateTimelineNavigationButtons();
+            updateKeyframeOffsetUI();
             updateGlobalTimeline();
         }
 
@@ -531,6 +596,72 @@
             } else {
                 multiSelectDisplay.style.display = 'none';
             }
+            updateKeyframeOffsetUI();
+        }
+
+        function updateKeyframeOffsetUI() {
+            if (!keyframeOffsetPanel || !applyKeyframeOffsetBtn || !keyframeOffsetStatus) return;
+
+            const selection = getActiveKeyframeSelection();
+            const selectionCount = selection.length;
+            const hasMultiSelection = selectionCount > 1;
+            if (keyframeOffsetFloatingPanel) {
+                keyframeOffsetFloatingPanel.style.display = hasMultiSelection ? '' : 'none';
+            }
+            keyframeOffsetPanel.style.display = 'grid';
+            applyKeyframeOffsetBtn.disabled = !hasMultiSelection;
+
+            if (!hasMultiSelection) {
+                if (keyframeOffsetXInput) keyframeOffsetXInput.value = 0;
+                if (keyframeOffsetYInput) keyframeOffsetYInput.value = 0;
+                keyframeOffsetStatus.textContent = '';
+                return;
+            }
+
+            const offsetX = getNum(keyframeOffsetXInput?.value, 0);
+            const offsetY = getNum(keyframeOffsetYInput?.value, 0);
+            if (offsetX === 0 && offsetY === 0) {
+                keyframeOffsetStatus.textContent = selectionCount > 1
+                    ? `目前選了 ${selectionCount} 個影格，輸入 X / Y 後可一起位移`
+                    : '目前選了 1 個影格，輸入 X / Y 後可套用位移';
+                return;
+            }
+
+            const xText = `${offsetX >= 0 ? '+' : ''}${offsetX}`;
+            const yText = `${offsetY >= 0 ? '+' : ''}${offsetY}`;
+            keyframeOffsetStatus.textContent = `準備套用到 ${selectionCount} 個影格: X ${xText}, Y ${yText}`;
+        }
+
+        function applyOffsetToSelectedKeyframes() {
+            const selection = getActiveKeyframeSelection();
+            if (selection.length === 0) return;
+
+            const offsetX = getNum(keyframeOffsetXInput?.value, 0);
+            const offsetY = getNum(keyframeOffsetYInput?.value, 0);
+            if (offsetX === 0 && offsetY === 0) {
+                if (keyframeOffsetStatus) keyframeOffsetStatus.textContent = '請輸入要套用的 X / Y offset';
+                return;
+            }
+
+            let appliedCount = 0;
+            selection.forEach(({ objId, kfIndex }) => {
+                const obj = animObjects.find(o => o.id === objId);
+                const keyframe = obj?.keyframes?.[kfIndex];
+                if (!keyframe) return;
+                keyframe.x = getNum(keyframe.x, 0) + offsetX;
+                keyframe.y = getNum(keyframe.y, 0) + offsetY;
+                appliedCount += 1;
+            });
+
+            if (appliedCount === 0) return;
+
+            seekToTime(playState.currentTime || 0);
+            updateUIState();
+            updateMultiSelectUI();
+
+            if (keyframeOffsetXInput) keyframeOffsetXInput.value = 0;
+            if (keyframeOffsetYInput) keyframeOffsetYInput.value = 0;
+            if (keyframeOffsetStatus) keyframeOffsetStatus.textContent = `已套用到 ${appliedCount} 個影格`;
         }
 
         function syncSelectedObjectFromKeyframes() {
@@ -903,6 +1034,17 @@
                     toggleTrackObjectVisibility(obj.id);
                 };
 
+                const duplicateBtn = document.createElement('button');
+                duplicateBtn.type = 'button';
+                duplicateBtn.className = 'track-duplicate-btn';
+                duplicateBtn.title = '複製圖層';
+                duplicateBtn.setAttribute('aria-label', `Duplicate ${obj.name}`);
+                duplicateBtn.textContent = '複';
+                duplicateBtn.onclick = async (event) => {
+                    event.stopPropagation();
+                    await duplicateObject(obj.id);
+                };
+
                 const nameWrap = document.createElement('div');
                 nameWrap.className = 'track-object-name-wrap';
                 const nameEl = document.createElement('span');
@@ -911,6 +1053,7 @@
                 nameWrap.appendChild(nameEl);
                 topRow.appendChild(reorderHandle);
                 topRow.appendChild(visibilityBtn);
+                topRow.appendChild(duplicateBtn);
                 topRow.appendChild(nameWrap);
                 header.appendChild(topRow);
                 const noteSummary = getObjectNoteSummary(obj.note, 24);

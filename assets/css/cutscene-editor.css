@@ -251,6 +251,51 @@
             background: rgba(78, 201, 176, 0.18);
             color: #d8fff4;
         }
+        .keyframe-offset-panel {
+            display: grid;
+            gap: 8px;
+            margin-top: 6px;
+            padding: 10px;
+            border: 1px solid rgba(230, 126, 34, 0.35);
+            border-radius: 8px;
+            background: rgba(230, 126, 34, 0.09);
+        }
+        .keyframe-offset-title {
+            font-size: 11px;
+            font-weight: bold;
+            color: #f2c18f;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+        }
+        .keyframe-offset-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+        .keyframe-offset-panel button {
+            width: 100%;
+            padding: 8px 10px;
+            border: none;
+            border-radius: 5px;
+            background: var(--record-color);
+            color: white;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .keyframe-offset-panel button:hover:not(:disabled) {
+            background: var(--record-hover);
+        }
+        .keyframe-offset-panel button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .keyframe-offset-status {
+            min-height: 16px;
+            font-size: 11px;
+            line-height: 1.4;
+            color: #f5c998;
+        }
 
         .list-container { background: #1a1a1a; border: 1px solid var(--border-color); border-radius: 3px; overflow-y: auto;}
         #object-list-container { height: 110px; }
@@ -367,6 +412,18 @@
         .floating-keyframe-panel .subpanel-body {
             background: transparent;
         }
+        .floating-keyframe-actions-panel {
+            right: 16px;
+            bottom: 16px;
+        }
+        .floating-keyframe-offset-panel {
+            right: 16px;
+            bottom: 184px;
+            width: min(300px, calc(100% - 32px));
+        }
+        .floating-keyframe-panel .keyframe-offset-panel {
+            margin-top: 0;
+        }
         .floating-panel-handle {
             touch-action: none;
         }
@@ -395,7 +452,7 @@
         }
         .track-header-top {
             display: grid;
-            grid-template-columns: 18px 22px minmax(0, 1fr);
+            grid-template-columns: 18px 22px 22px minmax(0, 1fr);
             align-items: center;
             gap: 6px;
             width: 100%;
@@ -460,6 +517,26 @@
             stroke-linecap: round;
             stroke-linejoin: round;
             flex-shrink: 0;
+        }
+        .track-duplicate-btn {
+            width: 22px;
+            height: 22px;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(0, 122, 204, 0.3);
+            border-radius: 6px;
+            background: rgba(0, 122, 204, 0.12);
+            color: #b5ddff;
+            cursor: pointer;
+            flex-shrink: 0;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .track-duplicate-btn:hover {
+            background: rgba(0, 122, 204, 0.22);
+            color: white;
         }
         
         #timeline-scroll-area {
