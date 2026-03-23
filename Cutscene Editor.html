@@ -43,10 +43,6 @@
                     <div id="object-list-container" class="list-container">
                         <ul id="object-list"></ul>
                     </div>
-                    <div class="control-group">
-                        <label for="layer-note-input">圖層註解：</label>
-                        <textarea id="layer-note-input" rows="3" placeholder="例如：主角立繪、夜景背景、翻頁時使用" disabled></textarea>
-                    </div>
                     <div id="spine-panel" style="display:none;">
                         <div class="control-group">
                             <label>Spine Animation:</label>
@@ -138,7 +134,7 @@
                         <button type="button" id="btn-copy-kf" onclick="copySelectedKeyframes()" disabled>Copy KF</button>
                         <button type="button" id="btn-paste-kf" onclick="pasteCopiedKeyframes()" disabled>Paste KF</button>
                     </div>
-                    <div id="update-hint" style="font-size:10px; color:#2980b9; text-align:center; display:none; margin-top:6px;">
+                    <div id="update-hint" class="update-hint">
                         正在編輯現有影格... 按更新儲存，按畫布空白處取消
                     </div>
                 </div>

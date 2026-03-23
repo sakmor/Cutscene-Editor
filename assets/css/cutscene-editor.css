@@ -234,6 +234,23 @@
             opacity: 0.4;
             cursor: not-allowed;
         }
+        .update-hint {
+            display: none;
+            margin-top: 6px;
+            padding: 8px 10px;
+            border: 1px solid rgba(41, 128, 185, 0.35);
+            border-radius: 6px;
+            background: rgba(41, 128, 185, 0.12);
+            color: #9fd8ff;
+            font-size: 11px;
+            line-height: 1.5;
+            text-align: left;
+        }
+        .update-hint.is-dragging {
+            border-color: rgba(78, 201, 176, 0.55);
+            background: rgba(78, 201, 176, 0.18);
+            color: #d8fff4;
+        }
 
         .list-container { background: #1a1a1a; border: 1px solid var(--border-color); border-radius: 3px; overflow-y: auto;}
         #object-list-container { height: 110px; }
@@ -246,7 +263,7 @@
         .obj-name { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .obj-note { font-size: 11px; color: #9aa7b5; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         #object-list li.active .obj-note { color: #d4e9ff; }
-        .layer-actions { display: flex; gap: 2px; flex-shrink: 0; align-self: center; }
+        .layer-actions { display: flex; gap: 2px; flex-shrink: 0; align-self: center; flex-wrap: wrap; justify-content: flex-end; }
         .layer-btn { font-size: 10px; background: #444; color: #ccc; padding: 3px 6px; border: none; border-radius: 3px; cursor: pointer; }
         .layer-btn:hover { background: #555; color: white; }
         .layer-btn.btn-danger:hover { background: var(--danger-color); }
@@ -684,6 +701,23 @@
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
+        }
+        .layer-note-modal-body {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 14px 18px 0;
+            background: #202022;
+        }
+        .layer-note-modal-meta {
+            margin: 0;
+            color: #9aa7b5;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        .layer-note-modal-body textarea {
+            min-height: 168px;
+            resize: vertical;
         }
 
     

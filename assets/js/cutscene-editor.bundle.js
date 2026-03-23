@@ -68,8 +68,9 @@
         const zoomDisplay = document.getElementById('zoom-display');
         const fileInput = document.getElementById('file-input');
         const spineInput = document.getElementById('spine-input');
+        const replaceImageInput = document.createElement('input');
         const objectListEl = document.getElementById('object-list');
-        const layerNoteInput = document.getElementById('layer-note-input');
+        const layerNoteInput = document.createElement('textarea');
         const propsPanel = document.getElementById('props-panel');
         const tintPanel = document.getElementById('tint-panel');
         const outputMaskWidthInput = document.getElementById('output-mask-width');
@@ -100,6 +101,7 @@
         const multiSelectDisplay = document.getElementById('multi-select-display');
         const timelineZoomSlider = document.getElementById('timeline-zoom-slider');
         const timelineZoomDisplay = document.getElementById('timeline-zoom-display');
+        let replaceImageTargetObjectId = null;
         let objectSettingsPanel = null;
         let blockPanel = null;
         let blockSizeInput = null;
@@ -109,6 +111,11 @@
         let textSizeInput = null;
         let textLineHeightInput = null;
         let textLetterSpacingInput = null;
+
+        replaceImageInput.type = 'file';
+        replaceImageInput.accept = 'image/*';
+        replaceImageInput.style.display = 'none';
+        document.body.appendChild(replaceImageInput);
         let textAlignInput = null;
         let textColorInput = null;
         let textFontFamilyInput = null;
@@ -122,6 +129,14 @@
         let projectFileModalSubtitle = null;
         let projectFileListEl = null;
         let projectFileModalOpen = false;
+        let layerNoteModal = null;
+        let layerNoteModalTitle = null;
+        let layerNoteModalSubtitle = null;
+        let layerNoteModalMeta = null;
+        let layerNoteModalTextarea = null;
+        let layerNoteModalSaveButton = null;
+        let layerNoteModalOpen = false;
+        let layerNoteModalObjectId = null;
         let saveDirectoryHandle = null;
         let currentProjectFileHandle = null;
         let currentProjectFileName = '';
@@ -781,6 +796,140 @@
             projectFileModal.hidden = true;
             projectFileModalOpen = false;
             document.body.classList.remove('modal-open');
+        };
+        const buildLayerNoteModal = () => {
+            const overlay = document.createElement('div');
+            overlay.id = 'layer-note-modal';
+            overlay.className = 'modal-overlay';
+            overlay.hidden = true;
+
+            const card = document.createElement('div');
+            card.className = 'modal-card';
+            card.setAttribute('role', 'dialog');
+            card.setAttribute('aria-modal', 'true');
+            card.setAttribute('aria-labelledby', 'layer-note-modal-title');
+
+            const header = document.createElement('div');
+            header.className = 'modal-header';
+
+            const titleWrap = document.createElement('div');
+            layerNoteModalTitle = document.createElement('h2');
+            layerNoteModalTitle.className = 'modal-title';
+            layerNoteModalTitle.id = 'layer-note-modal-title';
+            layerNoteModalTitle.textContent = '圖層註解';
+            layerNoteModalSubtitle = document.createElement('p');
+            layerNoteModalSubtitle.className = 'modal-subtitle';
+            layerNoteModalSubtitle.textContent = '雙擊圖層可快速新增或修改註解。';
+            titleWrap.appendChild(layerNoteModalTitle);
+            titleWrap.appendChild(layerNoteModalSubtitle);
+
+            const closeBtn = document.createElement('button');
+            closeBtn.type = 'button';
+            closeBtn.className = 'modal-close-btn';
+            closeBtn.setAttribute('aria-label', '關閉');
+            closeBtn.textContent = 'x';
+            closeBtn.addEventListener('click', closeLayerNoteModal);
+
+            header.appendChild(titleWrap);
+            header.appendChild(closeBtn);
+
+            const body = document.createElement('div');
+            body.className = 'layer-note-modal-body';
+
+            layerNoteModalMeta = document.createElement('p');
+            layerNoteModalMeta.className = 'layer-note-modal-meta';
+            body.appendChild(layerNoteModalMeta);
+
+            layerNoteModalTextarea = document.createElement('textarea');
+            layerNoteModalTextarea.id = 'layer-note-modal-input';
+            layerNoteModalTextarea.rows = 8;
+            layerNoteModalTextarea.placeholder = '例如：主角立繪、夜景背景、翻頁時要淡入...';
+            layerNoteModalTextarea.addEventListener('keydown', (event) => {
+                if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+                    event.preventDefault();
+                    saveLayerNoteModal();
+                }
+            });
+            body.appendChild(layerNoteModalTextarea);
+
+            const actions = document.createElement('div');
+            actions.className = 'modal-actions';
+
+            const leftActions = document.createElement('div');
+            leftActions.className = 'modal-actions-left';
+            leftActions.appendChild(createProjectModalButton('清空', 'btn-import', () => {
+                if (!layerNoteModalTextarea) return;
+                layerNoteModalTextarea.value = '';
+                layerNoteModalTextarea.focus();
+            }));
+
+            const rightActions = document.createElement('div');
+            rightActions.className = 'modal-actions-right';
+            rightActions.appendChild(createProjectModalButton('取消', 'btn-import', closeLayerNoteModal));
+            layerNoteModalSaveButton = createProjectModalButton('儲存註解', 'btn-export', saveLayerNoteModal);
+            rightActions.appendChild(layerNoteModalSaveButton);
+
+            actions.appendChild(leftActions);
+            actions.appendChild(rightActions);
+
+            card.appendChild(header);
+            card.appendChild(body);
+            card.appendChild(actions);
+            overlay.appendChild(card);
+
+            overlay.addEventListener('click', (event) => {
+                if (event.target === overlay) closeLayerNoteModal();
+            });
+
+            document.body.appendChild(overlay);
+            layerNoteModal = overlay;
+        };
+        const openLayerNoteModal = (objId = selectedObjectId) => {
+            const targetObj = animObjects.find(obj => obj.id === objId);
+            if (!targetObj) return;
+            if (!layerNoteModal) buildLayerNoteModal();
+
+            if (selectedObjectId !== objId) {
+                selectObject(objId);
+            }
+
+            const hasNote = normalizeObjectNote(targetObj.note).length > 0;
+            layerNoteModalObjectId = objId;
+            layerNoteModalTitle.textContent = hasNote ? '修改圖層註解' : '新增圖層註解';
+            layerNoteModalSubtitle.textContent = hasNote
+                ? '編輯這個圖層的註解內容。'
+                : '幫這個圖層補上一段註解，之後在清單與時間軸都看得到摘要。';
+            layerNoteModalMeta.textContent = `圖層：${targetObj.name}`;
+            layerNoteModalTextarea.value = targetObj.note || '';
+            layerNoteModalSaveButton.textContent = hasNote ? '儲存修改' : '新增註解';
+
+            layerNoteModal.hidden = false;
+            layerNoteModalOpen = true;
+            document.body.classList.add('modal-open');
+
+            requestAnimationFrame(() => {
+                layerNoteModalTextarea.focus();
+                const cursorPos = layerNoteModalTextarea.value.length;
+                layerNoteModalTextarea.setSelectionRange(cursorPos, cursorPos);
+            });
+        };
+        const closeLayerNoteModal = () => {
+            if (!layerNoteModal) return;
+            layerNoteModal.hidden = true;
+            layerNoteModalOpen = false;
+            layerNoteModalObjectId = null;
+            document.body.classList.remove('modal-open');
+        };
+        const saveLayerNoteModal = () => {
+            const targetObj = animObjects.find(obj => obj.id === layerNoteModalObjectId);
+            if (!targetObj || !layerNoteModalTextarea) {
+                closeLayerNoteModal();
+                return;
+            }
+
+            targetObj.note = normalizeObjectNote(layerNoteModalTextarea.value);
+            closeLayerNoteModal();
+            updateUIState();
         };
         const renderProjectFileListMessage = (message) => {
             if (!projectFileListEl) return;
@@ -1493,7 +1642,12 @@
             wrapper.tintOverlay = tintOverlay;
 
             wrapper.addEventListener('mousedown', onObjectMouseDown);
-            wrapper.addEventListener('click', (e) => { e.stopPropagation(); selectObject(objId); });
+            wrapper.addEventListener('click', (e) => {
+                e.stopPropagation();
+                selectObject(objId, {
+                    preserveKeyframeSelection: objId === selectedObjectId
+                });
+            });
             return wrapper;
         }
 
@@ -1741,7 +1895,6 @@
                 const imageAddWrapper = fileInput.parentElement;
                 const spineAddWrapper = spineInput.parentElement;
                 const layerListContainer = document.getElementById('object-list-container');
-                const noteGroup = layerNoteInput.closest('.control-group');
                 const blockAddWrapper = document.createElement('div');
                 blockAddWrapper.className = 'btn-add-obj-wrapper';
                 const blockAddButton = document.createElement('button');
@@ -1775,11 +1928,8 @@
                 const listPanel = createSidebarSubpanel('layer-list', '圖層清單');
                 listPanel.body.appendChild(layerListContainer);
 
-                const notePanel = createSidebarSubpanel('layer-note', '圖層備註');
-                notePanel.body.appendChild(noteGroup);
-
                 layersBody.innerHTML = '';
-                layersBody.append(addPanel.wrapper, listPanel.wrapper, notePanel.wrapper);
+                layersBody.append(addPanel.wrapper, listPanel.wrapper);
                 layersBody.dataset.subsectionsReady = 'true';
             }
 
@@ -1980,7 +2130,12 @@
             wrapper.tintOverlay = tintOverlay;
 
             wrapper.addEventListener('mousedown', onObjectMouseDown);
-            wrapper.addEventListener('click', (e) => { e.stopPropagation(); selectObject(objId); });
+            wrapper.addEventListener('click', (e) => {
+                e.stopPropagation();
+                selectObject(objId, {
+                    preserveKeyframeSelection: objId === selectedObjectId
+                });
+            });
             return wrapper;
         }
 
@@ -2072,6 +2227,7 @@
         applyBottomPanelHeight(loadBottomPanelHeight(), false);
         initializeSidebarSections();
         initializeSidebarSubsections();
+        buildLayerNoteModal();
         updateCanvasMaskLayout();
         window.addEventListener('resize', () => {
             applyBottomPanelHeight(bottomPanel.getBoundingClientRect().height, false);
@@ -2080,6 +2236,10 @@
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && projectFileModalOpen) {
                 closeProjectFileModal();
+                return;
+            }
+            if (e.key === 'Escape' && layerNoteModalOpen) {
+                closeLayerNoteModal();
             }
         });
         timelineResizer.addEventListener('mousedown', (e) => {
@@ -2336,6 +2496,29 @@
             reader.readAsDataURL(file);
         });
 
+        replaceImageInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const targetObj = animObjects.find(obj => obj.id === replaceImageTargetObjectId);
+            if (!file || !targetObj || targetObj.type !== IMAGE_TYPE) {
+                replaceImageTargetObjectId = null;
+                replaceImageInput.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                updateImageObjectSource(targetObj, ev.target.result, ev.target.result, buildDefaultAssetPath(file.name));
+                replaceImageTargetObjectId = null;
+                replaceImageInput.value = '';
+            };
+            reader.onerror = () => {
+                alert(`讀取圖片失敗：${file.name}`);
+                replaceImageTargetObjectId = null;
+                replaceImageInput.value = '';
+            };
+            reader.readAsDataURL(file);
+        });
+
         function addNewObject(name, imageSrc, note = '', storedSrc = null, assetPath = '') {
             const objId = createObjectId();
             const wrapper = createObjectWrapper(objId);
@@ -2359,6 +2542,28 @@
             };
             
             return finalizeNewObject(newObj);
+        }
+
+        function updateImageObjectSource(obj, imageSrc, storedSrc = null, assetPath = '') {
+            if (!obj || obj.type !== IMAGE_TYPE) return;
+            const imageEl = obj.domWrapper?.querySelector('img');
+            if (imageEl) {
+                imageEl.src = imageSrc;
+            }
+            obj.src = storedSrc || imageSrc;
+            obj.assetPath = normalizePath(assetPath || obj.assetPath || buildDefaultAssetPath(obj.name));
+            updateUIState();
+        }
+
+        function openReplaceImagePicker(objId) {
+            const targetObj = animObjects.find(obj => obj.id === objId);
+            if (!targetObj || targetObj.type !== IMAGE_TYPE) return;
+            if (selectedObjectId !== objId) {
+                selectObject(objId);
+            }
+            replaceImageTargetObjectId = objId;
+            replaceImageInput.value = '';
+            replaceImageInput.click();
         }
 
         function syncBlockElement(obj) {
@@ -2687,18 +2892,26 @@
             if (animObjects.length === 0) btnPlay.disabled = true;
         }
 
-        function selectObject(objId) {
+        function selectObject(objId, options = {}) {
+            const { preserveKeyframeSelection = false } = options;
             if (playState.isPlaying) stopAnimation();
             selectedObjectId = objId;
-            selectedKeyframeIndex = null;
-            selectedKeyframes = [];
-            updateMultiSelectUI();
+            if (!preserveKeyframeSelection) {
+                selectedKeyframeIndex = null;
+                selectedKeyframes = [];
+                updateMultiSelectUI();
+            }
             
             document.querySelectorAll('.anim-object-wrapper').forEach(el => el.classList.remove('selected'));
             if (objId !== null) {
                 document.getElementById(`obj-wrap-${objId}`)?.classList.add('selected');
                 const obj = getSelectedObjectData();
-                if (obj) { syncInputsWithState(obj.currentPose); intervalInput.value = 0.5; }
+                if (obj) {
+                    syncInputsWithState(obj.currentPose);
+                    if (!(preserveKeyframeSelection && selectedKeyframeIndex !== null)) {
+                        intervalInput.value = 0.5;
+                    }
+                }
             }
             updateUIState();
         }
@@ -2792,7 +3005,11 @@
 
                 const actions = document.createElement('div');
                 actions.className = 'layer-actions';
+                const replaceButton = obj.type === IMAGE_TYPE
+                    ? `<button class="layer-btn" title="更換這個圖層的圖片" onclick="event.stopPropagation(); openReplaceImagePicker(${obj.id});">換圖</button>`
+                    : '';
                 actions.innerHTML = `
+                    ${replaceButton}
                     <button class="layer-btn" title="上移圖層" onclick="event.stopPropagation(); moveLayer(${obj.id}, 1);">上</button>
                     <button class="layer-btn" title="下移圖層" onclick="event.stopPropagation(); moveLayer(${obj.id}, -1);">下</button>
                     <button class="layer-btn btn-danger" title="刪除圖層" onclick="event.stopPropagation(); deleteObject(${obj.id});">刪</button>
@@ -2801,6 +3018,12 @@
                 li.appendChild(info);
                 li.appendChild(actions);
                 li.onclick = () => selectObject(obj.id);
+                li.ondblclick = (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    openLayerNoteModal(obj.id);
+                };
+                actions.ondblclick = (event) => event.stopPropagation();
                 objectListEl.appendChild(li);
             }
         }
@@ -3225,6 +3448,11 @@
                     header.appendChild(noteEl);
                 }
                 header.onclick   = () => selectObject(obj.id);
+                header.ondblclick = (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    openLayerNoteModal(obj.id);
+                };
 
                 const framesArea = document.createElement('div');
                 framesArea.className  = 'track-frames';
@@ -3411,7 +3639,10 @@
                 kfDrag.dragTargets = [];
             }
 
-            if (drag.isDragging) drag.isDragging = false;
+            if (drag.isDragging) {
+                drag.isDragging = false;
+                if (selectedKeyframeIndex !== null) refreshKeyframeEditHint(false);
+            }
         });
 
 
@@ -3464,6 +3695,7 @@
             selectedKeyframeIndex = null;
             btnSnapshot.innerText = '📸 記錄為新影格';
             btnSnapshot.classList.remove('update-mode');
+            updateHint.classList.remove('is-dragging');
             updateHint.style.display = 'none';
             intervalInput.value = 0.5;
         }
@@ -3471,6 +3703,25 @@
         function handleSnapshotAction() {
             if (selectedKeyframeIndex !== null) updateSelectedKeyframe();
             else recordNewSnapshot();
+        }
+
+        function refreshKeyframeEditHint(isDragging = false) {
+            const obj = getSelectedObjectData();
+            const targetKf = (selectedKeyframeIndex !== null && obj?.keyframes?.[selectedKeyframeIndex])
+                ? obj.keyframes[selectedKeyframeIndex]
+                : null;
+
+            if (!targetKf) {
+                updateHint.classList.remove('is-dragging');
+                updateHint.style.display = 'none';
+                return;
+            }
+
+            updateHint.classList.toggle('is-dragging', isDragging);
+            updateHint.textContent = isDragging
+                ? `正在拖曳畫面物件，放開後按「更新影格」會套用到 ${targetKf.time.toFixed(2)}s。`
+                : `正在編輯 ${targetKf.time.toFixed(2)}s 影格。拖曳畫面物件後按「更新影格」即可覆蓋目前這格。`;
+            updateHint.style.display = 'block';
         }
 
         function recordNewSnapshot() {
@@ -3486,13 +3737,36 @@
             }
             newTime = Math.round(newTime * 100) / 100;
 
-            const currentPose = getInputPoseValues();
+            const currentPose = clonePose(obj.currentPose || getInputPoseValues());
             obj.keyframes.push({ time: newTime, ...currentPose });
             obj.currentPose = { ...currentPose }; 
             updateUIState();
             
             const scrollArea = document.getElementById('timeline-scroll-area');
             centerTimelineOnTime(newTime);
+        }
+
+        function recordNewSnapshot() {
+            const obj = getSelectedObjectData();
+            if (!obj) return;
+            const newTime = Math.max(0, Math.round((playState.currentTime || 0) * 100) / 100);
+
+            const currentPose = clonePose(obj.currentPose || getInputPoseValues());
+            const existingIndex = obj.keyframes.findIndex(kf => Math.abs(kf.time - newTime) < 0.0001);
+            if (existingIndex >= 0) {
+                obj.keyframes[existingIndex] = { time: newTime, ...currentPose };
+                obj.currentPose = { ...currentPose };
+                selectedKeyframes = [{ objId: obj.id, kfIndex: existingIndex }];
+                enterEditingFrameMode(existingIndex);
+                return;
+            }
+
+            obj.keyframes.push({ time: newTime, ...currentPose });
+            obj.keyframes.sort((a, b) => a.time - b.time);
+            const insertedIndex = obj.keyframes.findIndex(kf => Math.abs(kf.time - newTime) < 0.0001);
+            obj.currentPose = { ...currentPose };
+            selectedKeyframes = insertedIndex >= 0 ? [{ objId: obj.id, kfIndex: insertedIndex }] : [];
+            enterEditingFrameMode(insertedIndex >= 0 ? insertedIndex : obj.keyframes.length - 1);
         }
 
         function enterEditingFrameMode(index) {
@@ -3516,7 +3790,7 @@
             btnSnapshot.classList.add('update-mode');
             
             updateUIState(); 
-            updateHint.style.display = 'block';
+            refreshKeyframeEditHint(false);
         }
 
         function exitEditingFrameMode() {
@@ -3532,6 +3806,7 @@
             if (!obj || selectedKeyframeIndex === null) return;
 
             const editedPose = getInputPoseValues();
+            const targetIndex = selectedKeyframeIndex;
             const oldTime = obj.keyframes[selectedKeyframeIndex].time;
             const newInterval = Math.max(0, parseFloat(intervalInput.value) || 0);
 
@@ -3551,7 +3826,8 @@
             }
 
             obj.currentPose = { ...editedPose }; 
-            exitEditingFrameMode();
+            selectedKeyframes = [{ objId: obj.id, kfIndex: targetIndex }];
+            enterEditingFrameMode(targetIndex);
         }
 
         function deleteSelectedKeyframe() {
@@ -3634,6 +3910,7 @@
             if (!objData) return;
             drag.isDragging = true; drag.sx = e.clientX; drag.sy = e.clientY;
             drag.objX = objData.currentPose.x; drag.objY = objData.currentPose.y;
+            if (selectedKeyframeIndex !== null) refreshKeyframeEditHint(true);
 
             e.preventDefault(); e.stopPropagation();
         }
