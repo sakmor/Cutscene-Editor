@@ -1,0 +1,10 @@
+# MP4 export development temp files
+.tmp-*/
+*.tgz
+
+# Optional local export folders
+exports/
+export/
+
+# Local runtime leftovers
+*.log
