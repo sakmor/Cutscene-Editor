@@ -538,6 +538,50 @@
             background: rgba(0, 122, 204, 0.22);
             color: white;
         }
+        .track-iso-btn {
+            width: 22px;
+            height: 22px;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255, 170, 0, 0.3);
+            border-radius: 6px;
+            background: rgba(255, 170, 0, 0.08);
+            color: #c8a240;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .track-iso-btn:hover {
+            background: rgba(255, 170, 0, 0.2);
+            color: #ffcc44;
+        }
+        .track-iso-btn.is-active {
+            background: rgba(255, 170, 0, 0.28);
+            color: #ffcc44;
+            border-color: rgba(255, 170, 0, 0.7);
+        }
+        .track-row.iso-dimmed .track-frames,
+        .track-row.iso-dimmed .track-object-name-wrap,
+        .track-row.iso-dimmed .track-reorder-handle,
+        .track-row.iso-dimmed .track-visibility-btn,
+        .track-row.iso-dimmed .track-duplicate-btn,
+        .track-row.iso-dimmed .track-object-note {
+            opacity: 0.25;
+            pointer-events: none;
+            transition: opacity 0.15s;
+        }
+        .track-row.iso-dimmed .track-header {
+            pointer-events: none;
+        }
+        .track-row.iso-dimmed .track-iso-btn {
+            pointer-events: auto;
+        }
+        .anim-object-wrapper.iso-canvas-dimmed {
+            opacity: 0.25;
+            pointer-events: none;
+            transition: opacity 0.15s;
+        }
         
         #timeline-scroll-area {
             flex-grow: 1; overflow-x: auto; overflow-y: auto; position: relative; background: var(--track-bg);

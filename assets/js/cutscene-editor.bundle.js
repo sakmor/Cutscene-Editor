@@ -12,6 +12,7 @@
         let ffmpegWasmInstance = null;
 
         let selectedKeyframes = []; // [{ objId, kfIndex }] — 複選影格
+        let isoObjectId = null; // ISO 模式：只允許操作此物件的影格，null 表示未啟用
         let kfDrag = { isDragging: false, hasMoved: false, objId: null, kfIndex: null, startX: 0, startTime: 0, nodeEl: null, dragTargets: [] };
         let marqueeState = { isSelecting: false, hasMoved: false, additive: false, startX: 0, startY: 0, currentX: 0, currentY: 0, baseSelection: [] };
         let scrubState = { isScrubbing: false };
@@ -304,6 +305,7 @@
                 bitmapFont
             };
         };
+        const normalizeKeyframeText = (text) => String(text ?? '').replace(/\r\n/g, '\n');
         const cloneTextData = (textData = {}) => normalizeTextData(textData);
         const serializeTextData = (textData = {}) => {
             const normalized = normalizeTextData(textData);
@@ -343,7 +345,13 @@
             x: pose.x, y: pose.y, rot: pose.rot, scale: pose.scale, opacity: pose.opacity, visible: pose.visible !== false,
             ...normalizePoseEffects(pose)
         });
-        const normalizeKeyframe = (kf) => ({ ...clonePose(kf || DEFAULT_POSE), time: getNum(kf?.time, 0) });
+        const normalizeKeyframe = (kf) => {
+            const normalized = { ...clonePose(kf || DEFAULT_POSE), time: getNum(kf?.time, 0) };
+            if (kf && Object.prototype.hasOwnProperty.call(kf, 'text')) {
+                normalized.text = normalizeKeyframeText(kf.text);
+            }
+            return normalized;
+        };
         const normalizePath = (path) => String(path || '').replace(/\\/g, '/');
         const stripExtension = (name) => String(name || '').replace(/\.[^.]+$/, '');
         const getFileBaseName = (name) => String(name || '').split(/[\\/]/).pop() || '';
@@ -1604,6 +1612,35 @@
             else renderPlainTextObject(obj);
         }
 
+        function getKeyframeTextContentAtTime(keyframes, time, fallbackText = DEFAULT_TEXT_CONTENT) {
+            let resolvedText = normalizeKeyframeText(fallbackText);
+            const targetTime = Math.max(0, getNum(time, 0));
+            (keyframes || []).forEach((kf) => {
+                if (!kf || kf.time > targetTime) return;
+                if (Object.prototype.hasOwnProperty.call(kf, 'text')) {
+                    resolvedText = normalizeKeyframeText(kf.text);
+                }
+            });
+            return resolvedText;
+        }
+
+        function syncTextObjectFromKeyframes(obj, time) {
+            if (!obj || obj.type !== TEXT_TYPE) return false;
+            const nextText = getKeyframeTextContentAtTime(obj.keyframes || [], time, obj.textData?.text);
+            if (nextText === String(obj.textData?.text ?? '')) return false;
+
+            obj.textData = normalizeTextData({
+                ...obj.textData,
+                text: nextText
+            });
+            syncTextElement(obj);
+
+            if (obj.id === selectedObjectId && selectedKeyframeIndex === null) {
+                updateTextPanel(obj);
+            }
+            return true;
+        }
+
         const tintFilterSvg = document.createElementNS(SVG_NS, 'svg');
         tintFilterSvg.setAttribute('width', '0');
         tintFilterSvg.setAttribute('height', '0');
@@ -2082,6 +2119,7 @@
             wrapper.addEventListener('mousedown', onObjectMouseDown);
             wrapper.addEventListener('click', (e) => {
                 e.stopPropagation();
+                if (isoObjectId !== null && objId !== isoObjectId) return;
                 selectObject(objId, {
                     preserveKeyframeSelection: objId === selectedObjectId
                 });
@@ -2804,7 +2842,8 @@
             const duplicatedName = getDuplicatedObjectName(sourceObj.name);
             const clonedKeyframes = (sourceObj.keyframes || []).map(kf => ({
                 time: getNum(kf.time, 0),
-                ...clonePose(kf)
+                ...clonePose(kf),
+                ...(Object.prototype.hasOwnProperty.call(kf || {}, 'text') ? { text: normalizeKeyframeText(kf.text) } : {})
             }));
             let newObj = null;
 
@@ -3243,6 +3282,7 @@
                     sourceObjId: objId,
                     sourceObjName: obj.name,
                     time: kf.time,
+                    ...(Object.prototype.hasOwnProperty.call(kf, 'text') ? { text: normalizeKeyframeText(kf.text) } : {}),
                     pose: {
                         x: kf.x, y: kf.y, rot: kf.rot, scale: kf.scale, opacity: kf.opacity,
                         ...normalizePoseEffects(kf)
@@ -3280,15 +3320,16 @@
                 const inserted = [];
                 keyframeClipboard.items.forEach(item => {
                     const newTime = Math.max(0, Math.round((baseTime + item.relativeTime) * 100) / 100);
-                    const newKf = {
+                    const newKf = normalizeKeyframe({
                         time: newTime,
                         x: item.pose.x,
                         y: item.pose.y,
                         rot: item.pose.rot,
                         scale: item.pose.scale,
                         opacity: item.pose.opacity,
+                        ...(Object.prototype.hasOwnProperty.call(item, 'text') ? { text: item.text } : {}),
                         ...normalizePoseEffects(item.pose)
-                    };
+                    });
                     targetObj.keyframes.push(newKf);
                     inserted.push(newKf);
                 });
@@ -3312,15 +3353,16 @@
                     const inserted = [];
                     items.forEach(item => {
                         const newTime = Math.max(0, Math.round((baseTime + item.relativeTime) * 100) / 100);
-                        const newKf = {
+                        const newKf = normalizeKeyframe({
                             time: newTime,
                             x: item.pose.x,
                             y: item.pose.y,
                             rot: item.pose.rot,
                             scale: item.pose.scale,
                             opacity: item.pose.opacity,
+                            ...(Object.prototype.hasOwnProperty.call(item, 'text') ? { text: item.text } : {}),
                             ...normalizePoseEffects(item.pose)
-                        };
+                        });
                         sourceObj.keyframes.push(newKf);
                         inserted.push(newKf);
                     });
@@ -3392,6 +3434,7 @@
             const hits = [];
 
             document.querySelectorAll('.kf-node').forEach(node => {
+                if (isoObjectId !== null && Number(node.dataset.objId) !== isoObjectId) return;
                 const nodeRect = node.getBoundingClientRect();
                 const nodeLeft = nodeRect.left - scrollRect.left + timelineScrollArea.scrollLeft;
                 const nodeTop = nodeRect.top - scrollRect.top + timelineScrollArea.scrollTop;
@@ -3475,8 +3518,23 @@
             }
         }
 
+        function applyIsoToCanvas() {
+            animObjects.forEach(obj => {
+                if (!obj.domWrapper) return;
+                const dimmed = isoObjectId !== null && obj.id !== isoObjectId;
+                obj.domWrapper.classList.toggle('iso-canvas-dimmed', dimmed);
+            });
+        }
+
+        function toggleIsoMode(objId) {
+            isoObjectId = (isoObjectId === objId) ? null : objId;
+            applyIsoToCanvas();
+            updateGlobalTimeline();
+        }
+
         function handleKfNodeMouseDown(e, kf, index, obj, node) {
             if (playState.isPlaying) return;
+            if (isoObjectId !== null && obj.id !== isoObjectId) return;
             e.stopPropagation();
             const isInSelection = selectedKeyframes.some(s => s.objId === obj.id && s.kfIndex === index);
 
@@ -3570,7 +3628,7 @@
                 duplicateBtn.className = 'track-duplicate-btn';
                 duplicateBtn.title = '複製圖層';
                 duplicateBtn.setAttribute('aria-label', `Duplicate ${obj.name}`);
-                duplicateBtn.textContent = '複';
+                duplicateBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
                 duplicateBtn.onclick = async (event) => {
                     event.stopPropagation();
                     await duplicateObject(obj.id);
@@ -3582,9 +3640,21 @@
                 nameEl.className = 'track-object-name';
                 nameEl.textContent = obj.name;
                 nameWrap.appendChild(nameEl);
+                const isoBtn = document.createElement('button');
+                isoBtn.type = 'button';
+                isoBtn.className = 'track-iso-btn' + (isoObjectId === obj.id ? ' is-active' : '');
+                isoBtn.title = isoObjectId === obj.id ? '解除 ISO' : 'ISO 此圖層';
+                isoBtn.setAttribute('aria-label', `ISO ${obj.name}`);
+                isoBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>`;
+                isoBtn.onclick = (event) => {
+                    event.stopPropagation();
+                    toggleIsoMode(obj.id);
+                };
+
                 topRow.appendChild(reorderHandle);
                 topRow.appendChild(visibilityBtn);
                 topRow.appendChild(duplicateBtn);
+                topRow.appendChild(isoBtn);
                 topRow.appendChild(nameWrap);
                 header.appendChild(topRow);
                 const noteSummary = getObjectNoteSummary(obj.note, 24);
@@ -3612,6 +3682,7 @@
                 row.dataset.objId = obj.id;
                 row.style.width = `${trackWidth + HEADER_WIDTH}px`;
                 if (obj.id === selectedObjectId) row.classList.add('active-track');
+                if (isoObjectId !== null && obj.id !== isoObjectId) row.classList.add('iso-dimmed');
                 row.appendChild(header);
                 row.appendChild(framesArea);
                 tracksContainer.appendChild(row);
@@ -3661,6 +3732,7 @@
                 if (!pose) return;
                 applyPoseToDOM(obj.domWrapper, pose);
                 obj.currentPose = { ...pose };
+                syncTextObjectFromKeyframes(obj, time);
                 if (obj.id === selectedObjectId && selectedKeyframeIndex === null) syncInputsWithState(pose);
             });
             refreshTrackVisibilityIndicators();
@@ -3877,18 +3949,21 @@
             const obj = getSelectedObjectData();
             if (!obj) return;
             const newTime = Math.max(0, Math.round((playState.currentTime || 0) * 100) / 100);
+            const text = obj.type === TEXT_TYPE ? normalizeKeyframeText(obj.textData?.text) : null;
 
             const currentPose = clonePose(obj.currentPose || getInputPoseValues());
             const existingIndex = obj.keyframes.findIndex(kf => Math.abs(kf.time - newTime) < 0.0001);
+            const currentKeyframe = { time: newTime, ...currentPose };
+            if (text !== null) currentKeyframe.text = text;
             if (existingIndex >= 0) {
-                obj.keyframes[existingIndex] = { time: newTime, ...currentPose };
+                obj.keyframes[existingIndex] = normalizeKeyframe(currentKeyframe);
                 obj.currentPose = { ...currentPose };
                 selectedKeyframes = [{ objId: obj.id, kfIndex: existingIndex }];
                 enterEditingFrameMode(existingIndex);
                 return;
             }
 
-            obj.keyframes.push({ time: newTime, ...currentPose });
+            obj.keyframes.push(normalizeKeyframe(currentKeyframe));
             obj.keyframes.sort((a, b) => a.time - b.time);
             const insertedIndex = obj.keyframes.findIndex(kf => Math.abs(kf.time - newTime) < 0.0001);
             obj.currentPose = { ...currentPose };
@@ -3934,6 +4009,7 @@
 
             const editedPose = getInputPoseValues();
             const targetIndex = selectedKeyframeIndex;
+            const text = obj.type === TEXT_TYPE ? normalizeKeyframeText(obj.textData?.text) : null;
             const oldTime = obj.keyframes[selectedKeyframeIndex].time;
             const newInterval = Math.max(0, parseFloat(intervalInput.value) || 0);
 
@@ -3947,7 +4023,9 @@
             newTime = Math.max(0, Math.round(newTime * 100) / 100);
             const timeDiff = newTime - oldTime;
 
-            obj.keyframes[selectedKeyframeIndex] = { time: newTime, ...editedPose };
+            const updatedKeyframe = { time: newTime, ...editedPose };
+            if (text !== null) updatedKeyframe.text = text;
+            obj.keyframes[selectedKeyframeIndex] = normalizeKeyframe(updatedKeyframe);
             for (let i = selectedKeyframeIndex + 1; i < obj.keyframes.length; i++) {
                 obj.keyframes[i].time = Math.max(0, obj.keyframes[i].time + timeDiff);
             }
@@ -3987,7 +4065,7 @@
             domWrapper.style.transform = `translate(calc(-50% + ${pose.x}px), calc(-50% + ${-pose.y}px)) rotate(${pose.rot}deg) scale(${pose.scale})`;
             domWrapper.style.opacity = pose.opacity;
             domWrapper.style.visibility = finalVisible ? 'visible' : 'hidden';
-            domWrapper.style.pointerEvents = finalVisible ? 'auto' : 'none';
+            domWrapper.style.pointerEvents = (finalVisible && !domWrapper.classList.contains('iso-canvas-dimmed')) ? 'auto' : 'none';
             const effects = normalizePoseEffects(pose);
             domWrapper.style.mixBlendMode = effects.blendMode;
             const tint = effects.tint;
@@ -4031,7 +4109,8 @@
         function onObjectMouseDown(e) {
             if (playState.isPlaying) return;
             const wrap = e.currentTarget;
-            if (wrap.dataset.objId !== String(selectedObjectId)) return; 
+            if (isoObjectId !== null && Number(wrap.dataset.objId) !== isoObjectId) return;
+            if (wrap.dataset.objId !== String(selectedObjectId)) return;
 
             const objData = getSelectedObjectData();
             if (!objData) return;
@@ -4149,6 +4228,7 @@
                 if (pose) {
                     applyPoseToDOM(obj.domWrapper, pose);
                     obj.currentPose = { ...pose };
+                    syncTextObjectFromKeyframes(obj, t_app);
                 }
             });
             refreshTrackVisibilityIndicators();
@@ -5267,13 +5347,14 @@
                     hue: parseFloat(getNum(kf.hue, DEFAULT_HUE).toFixed(2)),
                     brightness: parseFloat(getNum(kf.brightness, DEFAULT_BRIGHTNESS).toFixed(2)),
                     contrast: parseFloat(getNum(kf.contrast, DEFAULT_CONTRAST).toFixed(2)),
-                    blendMode: normalizeBlendMode(kf.blendMode)
+                    blendMode: normalizeBlendMode(kf.blendMode),
+                    ...(Object.prototype.hasOwnProperty.call(kf, 'text') ? { text: normalizeKeyframeText(kf.text) } : {})
                 }))
             }));
 
             return {
                 project_type: 'PixelAnimator_NLE',
-                version: 6,
+                version: 7,
                 mask: outputMask.enabled ? { width: outputMask.width, height: outputMask.height } : null,
                 objects: exportData
             };

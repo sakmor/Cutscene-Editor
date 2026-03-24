@@ -7,6 +7,7 @@
         let outputMask = { enabled: false, width: 1920, height: 1080 };
 
         let selectedKeyframes = []; // [{ objId, kfIndex }] — 複選影格
+        let isoObjectId = null; // ISO 模式：只允許操作此物件的影格，null 表示未啟用
         let kfDrag = { isDragging: false, hasMoved: false, objId: null, kfIndex: null, startX: 0, startTime: 0, nodeEl: null, dragTargets: [] };
         let marqueeState = { isSelecting: false, hasMoved: false, additive: false, startX: 0, startY: 0, currentX: 0, currentY: 0, baseSelection: [] };
         let scrubState = { isScrubbing: false };
@@ -275,6 +276,7 @@
                 bitmapFont
             };
         };
+        const normalizeKeyframeText = (text) => String(text ?? '').replace(/\r\n/g, '\n');
         const cloneTextData = (textData = {}) => normalizeTextData(textData);
         const serializeTextData = (textData = {}) => {
             const normalized = normalizeTextData(textData);
@@ -314,7 +316,13 @@
             x: pose.x, y: pose.y, rot: pose.rot, scale: pose.scale, opacity: pose.opacity, visible: pose.visible !== false,
             ...normalizePoseEffects(pose)
         });
-        const normalizeKeyframe = (kf) => ({ ...clonePose(kf || DEFAULT_POSE), time: getNum(kf?.time, 0) });
+        const normalizeKeyframe = (kf) => {
+            const normalized = { ...clonePose(kf || DEFAULT_POSE), time: getNum(kf?.time, 0) };
+            if (kf && Object.prototype.hasOwnProperty.call(kf, 'text')) {
+                normalized.text = normalizeKeyframeText(kf.text);
+            }
+            return normalized;
+        };
         const normalizePath = (path) => String(path || '').replace(/\\/g, '/');
         const stripExtension = (name) => String(name || '').replace(/\.[^.]+$/, '');
         const getFileBaseName = (name) => String(name || '').split(/[\\/]/).pop() || '';

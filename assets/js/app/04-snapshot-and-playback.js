@@ -60,18 +60,21 @@
             const obj = getSelectedObjectData();
             if (!obj) return;
             const newTime = Math.max(0, Math.round((playState.currentTime || 0) * 100) / 100);
+            const text = obj.type === TEXT_TYPE ? normalizeKeyframeText(obj.textData?.text) : null;
 
             const currentPose = clonePose(obj.currentPose || getInputPoseValues());
             const existingIndex = obj.keyframes.findIndex(kf => Math.abs(kf.time - newTime) < 0.0001);
+            const currentKeyframe = { time: newTime, ...currentPose };
+            if (text !== null) currentKeyframe.text = text;
             if (existingIndex >= 0) {
-                obj.keyframes[existingIndex] = { time: newTime, ...currentPose };
+                obj.keyframes[existingIndex] = normalizeKeyframe(currentKeyframe);
                 obj.currentPose = { ...currentPose };
                 selectedKeyframes = [{ objId: obj.id, kfIndex: existingIndex }];
                 enterEditingFrameMode(existingIndex);
                 return;
             }
 
-            obj.keyframes.push({ time: newTime, ...currentPose });
+            obj.keyframes.push(normalizeKeyframe(currentKeyframe));
             obj.keyframes.sort((a, b) => a.time - b.time);
             const insertedIndex = obj.keyframes.findIndex(kf => Math.abs(kf.time - newTime) < 0.0001);
             obj.currentPose = { ...currentPose };
@@ -116,6 +119,7 @@
             if (!obj || selectedKeyframeIndex === null) return;
 
             const editedPose = getInputPoseValues();
+            const text = obj.type === TEXT_TYPE ? normalizeKeyframeText(obj.textData?.text) : null;
             const oldTime = obj.keyframes[selectedKeyframeIndex].time;
             const newInterval = Math.max(0, parseFloat(intervalInput.value) || 0);
 
@@ -129,7 +133,9 @@
             newTime = Math.max(0, Math.round(newTime * 100) / 100);
             const timeDiff = newTime - oldTime;
 
-            obj.keyframes[selectedKeyframeIndex] = { time: newTime, ...editedPose };
+            const updatedKeyframe = { time: newTime, ...editedPose };
+            if (text !== null) updatedKeyframe.text = text;
+            obj.keyframes[selectedKeyframeIndex] = normalizeKeyframe(updatedKeyframe);
             for (let i = selectedKeyframeIndex + 1; i < obj.keyframes.length; i++) {
                 obj.keyframes[i].time = Math.max(0, obj.keyframes[i].time + timeDiff);
             }
@@ -168,7 +174,7 @@
             domWrapper.style.transform = `translate(calc(-50% + ${pose.x}px), calc(-50% + ${-pose.y}px)) rotate(${pose.rot}deg) scale(${pose.scale})`;
             domWrapper.style.opacity = pose.opacity;
             domWrapper.style.visibility = finalVisible ? 'visible' : 'hidden';
-            domWrapper.style.pointerEvents = finalVisible ? 'auto' : 'none';
+            domWrapper.style.pointerEvents = (finalVisible && !domWrapper.classList.contains('iso-canvas-dimmed')) ? 'auto' : 'none';
             const effects = normalizePoseEffects(pose);
             domWrapper.style.mixBlendMode = effects.blendMode;
             const tint = effects.tint;
@@ -212,6 +218,7 @@
         function onObjectMouseDown(e) {
             if (playState.isPlaying) return;
             const wrap = e.currentTarget;
+            if (isoObjectId !== null && Number(wrap.dataset.objId) !== isoObjectId) return;
             if (wrap.dataset.objId !== String(selectedObjectId)) return; 
 
             const objData = getSelectedObjectData();
@@ -329,6 +336,7 @@
                 if (pose) {
                     applyPoseToDOM(obj.domWrapper, pose);
                     obj.currentPose = { ...pose };
+                    syncTextObjectFromKeyframes(obj, t_app);
                 }
             });
             refreshTrackVisibilityIndicators();

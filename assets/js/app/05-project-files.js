@@ -63,13 +63,14 @@
                     hue: parseFloat(getNum(kf.hue, DEFAULT_HUE).toFixed(2)),
                     brightness: parseFloat(getNum(kf.brightness, DEFAULT_BRIGHTNESS).toFixed(2)),
                     contrast: parseFloat(getNum(kf.contrast, DEFAULT_CONTRAST).toFixed(2)),
-                    blendMode: normalizeBlendMode(kf.blendMode)
+                    blendMode: normalizeBlendMode(kf.blendMode),
+                    ...(Object.prototype.hasOwnProperty.call(kf, 'text') ? { text: normalizeKeyframeText(kf.text) } : {})
                 }))
             }));
 
             return {
                 project_type: 'PixelAnimator_NLE',
-                version: 6,
+                version: 7,
                 mask: outputMask.enabled ? { width: outputMask.width, height: outputMask.height } : null,
                 objects: exportData
             };

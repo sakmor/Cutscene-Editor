@@ -149,6 +149,35 @@
             else renderPlainTextObject(obj);
         }
 
+        function getKeyframeTextContentAtTime(keyframes, time, fallbackText = DEFAULT_TEXT_CONTENT) {
+            let resolvedText = normalizeKeyframeText(fallbackText);
+            const targetTime = Math.max(0, getNum(time, 0));
+            (keyframes || []).forEach((kf) => {
+                if (!kf || kf.time > targetTime) return;
+                if (Object.prototype.hasOwnProperty.call(kf, 'text')) {
+                    resolvedText = normalizeKeyframeText(kf.text);
+                }
+            });
+            return resolvedText;
+        }
+
+        function syncTextObjectFromKeyframes(obj, time) {
+            if (!obj || obj.type !== TEXT_TYPE) return false;
+            const nextText = getKeyframeTextContentAtTime(obj.keyframes || [], time, obj.textData?.text);
+            if (nextText === String(obj.textData?.text ?? '')) return false;
+
+            obj.textData = normalizeTextData({
+                ...obj.textData,
+                text: nextText
+            });
+            syncTextElement(obj);
+
+            if (obj.id === selectedObjectId && selectedKeyframeIndex === null) {
+                updateTextPanel(obj);
+            }
+            return true;
+        }
+
         const tintFilterSvg = document.createElementNS(SVG_NS, 'svg');
         tintFilterSvg.setAttribute('width', '0');
         tintFilterSvg.setAttribute('height', '0');
@@ -629,7 +658,11 @@
             wrapper.tintOverlay = tintOverlay;
 
             wrapper.addEventListener('mousedown', onObjectMouseDown);
-            wrapper.addEventListener('click', (e) => { e.stopPropagation(); selectObject(objId); });
+            wrapper.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (isoObjectId !== null && objId !== isoObjectId) return;
+                selectObject(objId);
+            });
             return wrapper;
         }
 

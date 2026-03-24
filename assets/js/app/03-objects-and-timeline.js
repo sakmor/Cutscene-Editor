@@ -291,7 +291,8 @@
             const duplicatedName = getDuplicatedObjectName(sourceObj.name);
             const clonedKeyframes = (sourceObj.keyframes || []).map(kf => ({
                 time: getNum(kf.time, 0),
-                ...clonePose(kf)
+                ...clonePose(kf),
+                ...(Object.prototype.hasOwnProperty.call(kf || {}, 'text') ? { text: normalizeKeyframeText(kf.text) } : {})
             }));
             let newObj = null;
 
@@ -712,6 +713,7 @@
                     sourceObjId: objId,
                     sourceObjName: obj.name,
                     time: kf.time,
+                    ...(Object.prototype.hasOwnProperty.call(kf, 'text') ? { text: normalizeKeyframeText(kf.text) } : {}),
                     pose: {
                         x: kf.x, y: kf.y, rot: kf.rot, scale: kf.scale, opacity: kf.opacity,
                         ...normalizePoseEffects(kf)
@@ -749,15 +751,16 @@
                 const inserted = [];
                 keyframeClipboard.items.forEach(item => {
                     const newTime = Math.max(0, Math.round((baseTime + item.relativeTime) * 100) / 100);
-                    const newKf = {
+                    const newKf = normalizeKeyframe({
                         time: newTime,
                         x: item.pose.x,
                         y: item.pose.y,
                         rot: item.pose.rot,
                         scale: item.pose.scale,
                         opacity: item.pose.opacity,
+                        ...(Object.prototype.hasOwnProperty.call(item, 'text') ? { text: item.text } : {}),
                         ...normalizePoseEffects(item.pose)
-                    };
+                    });
                     targetObj.keyframes.push(newKf);
                     inserted.push(newKf);
                 });
@@ -781,15 +784,16 @@
                     const inserted = [];
                     items.forEach(item => {
                         const newTime = Math.max(0, Math.round((baseTime + item.relativeTime) * 100) / 100);
-                        const newKf = {
+                        const newKf = normalizeKeyframe({
                             time: newTime,
                             x: item.pose.x,
                             y: item.pose.y,
                             rot: item.pose.rot,
                             scale: item.pose.scale,
                             opacity: item.pose.opacity,
+                            ...(Object.prototype.hasOwnProperty.call(item, 'text') ? { text: item.text } : {}),
                             ...normalizePoseEffects(item.pose)
-                        };
+                        });
                         sourceObj.keyframes.push(newKf);
                         inserted.push(newKf);
                     });
@@ -861,6 +865,7 @@
             const hits = [];
 
             document.querySelectorAll('.kf-node').forEach(node => {
+                if (isoObjectId !== null && Number(node.dataset.objId) !== isoObjectId) return;
                 const nodeRect = node.getBoundingClientRect();
                 const nodeLeft = nodeRect.left - scrollRect.left + timelineScrollArea.scrollLeft;
                 const nodeTop = nodeRect.top - scrollRect.top + timelineScrollArea.scrollTop;
@@ -944,8 +949,23 @@
             }
         }
 
+        function applyIsoToCanvas() {
+            animObjects.forEach(obj => {
+                if (!obj.domWrapper) return;
+                const dimmed = isoObjectId !== null && obj.id !== isoObjectId;
+                obj.domWrapper.classList.toggle('iso-canvas-dimmed', dimmed);
+            });
+        }
+
+        function toggleIsoMode(objId) {
+            isoObjectId = (isoObjectId === objId) ? null : objId;
+            applyIsoToCanvas();
+            updateGlobalTimeline();
+        }
+
         function handleKfNodeMouseDown(e, kf, index, obj, node) {
             if (playState.isPlaying) return;
+            if (isoObjectId !== null && obj.id !== isoObjectId) return;
             e.stopPropagation();
             const isInSelection = selectedKeyframes.some(s => s.objId === obj.id && s.kfIndex === index);
 
@@ -1039,7 +1059,7 @@
                 duplicateBtn.className = 'track-duplicate-btn';
                 duplicateBtn.title = '複製圖層';
                 duplicateBtn.setAttribute('aria-label', `Duplicate ${obj.name}`);
-                duplicateBtn.textContent = '複';
+                duplicateBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
                 duplicateBtn.onclick = async (event) => {
                     event.stopPropagation();
                     await duplicateObject(obj.id);
@@ -1051,9 +1071,21 @@
                 nameEl.className = 'track-object-name';
                 nameEl.textContent = obj.name;
                 nameWrap.appendChild(nameEl);
+                const isoBtn = document.createElement('button');
+                isoBtn.type = 'button';
+                isoBtn.className = 'track-iso-btn' + (isoObjectId === obj.id ? ' is-active' : '');
+                isoBtn.title = isoObjectId === obj.id ? '解除 ISO' : 'ISO 此圖層';
+                isoBtn.setAttribute('aria-label', `ISO ${obj.name}`);
+                isoBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>`;
+                isoBtn.onclick = (event) => {
+                    event.stopPropagation();
+                    toggleIsoMode(obj.id);
+                };
+
                 topRow.appendChild(reorderHandle);
                 topRow.appendChild(visibilityBtn);
                 topRow.appendChild(duplicateBtn);
+                topRow.appendChild(isoBtn);
                 topRow.appendChild(nameWrap);
                 header.appendChild(topRow);
                 const noteSummary = getObjectNoteSummary(obj.note, 24);
@@ -1076,6 +1108,7 @@
                 row.dataset.objId = obj.id;
                 row.style.width = `${trackWidth + HEADER_WIDTH}px`;
                 if (obj.id === selectedObjectId) row.classList.add('active-track');
+                if (isoObjectId !== null && obj.id !== isoObjectId) row.classList.add('iso-dimmed');
                 row.appendChild(header);
                 row.appendChild(framesArea);
                 tracksContainer.appendChild(row);
@@ -1125,6 +1158,7 @@
                 if (!pose) return;
                 applyPoseToDOM(obj.domWrapper, pose);
                 obj.currentPose = { ...pose };
+                syncTextObjectFromKeyframes(obj, time);
                 if (obj.id === selectedObjectId && selectedKeyframeIndex === null) syncInputsWithState(pose);
             });
             refreshTrackVisibilityIndicators();
