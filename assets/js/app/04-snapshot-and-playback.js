@@ -79,28 +79,6 @@
             enterEditingFrameMode(insertedIndex >= 0 ? insertedIndex : obj.keyframes.length - 1);
         }
 
-        function recordNewSnapshotLegacy() {
-            const obj = getSelectedObjectData();
-            if (!obj) return;
-            const interval = Math.max(0, parseFloat(intervalInput.value) || 0);
-            let newTime;
-            if (obj.keyframes.length === 0) {
-                newTime = interval;
-            } else {
-                const lastTime = obj.keyframes[obj.keyframes.length - 1].time;
-                newTime = lastTime + Math.max(interval, 0.01); // 修復 Bug 1：防止相同時間點產生 NaN
-            }
-            newTime = Math.round(newTime * 100) / 100;
-
-            const currentPose = getInputPoseValues();
-            obj.keyframes.push({ time: newTime, ...currentPose });
-            obj.currentPose = { ...currentPose }; 
-            updateUIState();
-            
-            const scrollArea = document.getElementById('timeline-scroll-area');
-            centerTimelineOnTime(newTime);
-        }
-
         function enterEditingFrameMode(index) {
             if (playState.isPlaying) stopAnimation();
             const obj = getSelectedObjectData();
@@ -362,79 +340,4 @@
                 playState.animationFrameId = requestAnimationFrame(animationLoop);
             }
         }
-
-        /* Legacy import/export block replaced below.
-        function exportProjectJSON() {
-            if (animObjects.length === 0) { alert("沒有工程可匯出"); return; }
-            const exportData = animObjects.map(obj => ({
-                name: obj.name,
-                src: obj.src,
-                keyframes: obj.keyframes.map(kf => ({ time: parseFloat(kf.time.toFixed(3)), x: Math.round(kf.x), y: Math.round(kf.y), rot: Math.round(kf.rot), scale: parseFloat(kf.scale.toFixed(2)), opacity: parseFloat(kf.opacity.toFixed(2)) }))
-            }));
-            const dataStr = JSON.stringify({ project_type: "PixelAnimator_NLE", version: 2, objects: exportData }, null, 2);
-            const a = document.createElement('a');
-            const blobUrl = URL.createObjectURL(new Blob([dataStr], { type: "application/json" }));
-            a.href = blobUrl;
-            a.download = "animation_project.json";
-            document.body.appendChild(a); a.click(); document.body.removeChild(a);
-            URL.revokeObjectURL(blobUrl);
-        }
-
-        function importProjectJSON() {
-            document.getElementById('json-import-input').click();
-        }
-
-        document.getElementById('json-import-input').addEventListener('change', function (e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                try {
-                    const data = JSON.parse(ev.target.result);
-
-                    if (data.project_type !== 'PixelAnimator_NLE') {
-                        alert('❌ 無效的工程檔案\n此 JSON 並非由本工具匯出'); return;
-                    }
-                    if (!Array.isArray(data.objects) || data.objects.length === 0) {
-                        alert('❌ JSON 中找不到任何物件資料'); return;
-                    }
-                    if (!data.objects.every(o => o.src)) {
-                        alert('⚠️ 舊版格式不含圖片資料，無法還原\n\n請重新用新版工具匯出後再匯入'); return;
-                    }
-
-                    let overwrite = true;
-                    if (animObjects.length > 0) {
-                        overwrite = confirm(
-                            `匯入 ${data.objects.length} 個物件\n\n` +
-                            `確定 → 清空畫布後匯入\n取消 → 合併加入現有工程`
-                        );
-                    }
-
-                    if (overwrite) {
-                        if (playState.isPlaying) stopAnimation();
-                        animObjects.forEach(obj => obj.domWrapper?.remove());
-                        animObjects = [];
-                        selectedObjectId = null;
-                        selectedKeyframeIndex = null;
-                        selectedKeyframes = [];
-                        updateMultiSelectUI();
-                    }
-
-                    data.objects.forEach(objData => {
-                        addNewObject(objData.name, objData.src);
-                        const newObj = animObjects[animObjects.length - 1];
-                        newObj.keyframes = objData.keyframes.map(kf => ({ ...kf }));
-                    });
-
-                    btnPlay.disabled = animObjects.length === 0;
-                    updateUIState();
-
-                } catch (err) {
-                    alert('❌ 匯入失敗：' + err.message);
-                }
-                e.target.value = '';
-            };
-            reader.readAsText(file);
-        });
-        */
 
