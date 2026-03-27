@@ -299,16 +299,42 @@
 
         .list-container { background: #1a1a1a; border: 1px solid var(--border-color); border-radius: 3px; overflow-y: auto;}
         #object-list-container { height: 110px; }
-        #object-list { list-style:none; padding:0; margin:0; }
-        #object-list li { padding: 6px 8px; min-height: 36px; border-bottom: 1px solid #2a2a2a; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-        #object-list li.has-note { min-height: 46px; align-items: flex-start; }
-        #object-list li:hover { background: #2a2a2a; }
-        #object-list li.active { background: rgba(0, 122, 204, 0.2); border-left: 3px solid var(--accent-color); color: white;}
+        #object-list, #hidden-object-list { list-style:none; padding:0; margin:0; }
+        #object-list li, #hidden-object-list li { padding: 6px 8px; min-height: 36px; border-bottom: 1px solid #2a2a2a; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        #object-list li.has-note, #hidden-object-list li.has-note { min-height: 46px; align-items: flex-start; }
+        #object-list li:hover, #hidden-object-list li:hover { background: #2a2a2a; }
+        #object-list li.active, #hidden-object-list li.active { background: rgba(0, 122, 204, 0.2); border-left: 3px solid var(--accent-color); color: white;}
         .object-list-info { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
         .obj-name { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .obj-note { font-size: 11px; color: #9aa7b5; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        #object-list li.active .obj-note { color: #d4e9ff; }
+        #object-list li.active .obj-note, #hidden-object-list li.active .obj-note { color: #d4e9ff; }
         .layer-actions { display: flex; gap: 2px; flex-shrink: 0; align-self: center; flex-wrap: wrap; justify-content: flex-end; }
+        #hidden-object-list-container { height: auto; max-height: 96px; }
+        #hidden-object-list-section { margin-top: 8px; }
+        .hidden-object-list-header {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+        .hidden-object-list-checkbox {
+            width: 14px;
+            height: 14px;
+            margin: 0 0 0 2px;
+            flex: 0 0 auto;
+            accent-color: var(--accent-color);
+        }
+        .hidden-object-list-title { font-size: 11px; color: #8fa2b6; margin: 0; letter-spacing: 0.04em; text-transform: uppercase; }
+        .hidden-object-list-empty {
+            padding: 8px 10px;
+            font-size: 11px;
+            color: #7f8c98;
+            border: 1px dashed #3a3a3a;
+            border-top: none;
+            border-radius: 0 0 3px 3px;
+            background: #161616;
+        }
         .layer-btn { font-size: 10px; background: #444; color: #ccc; padding: 3px 6px; border: none; border-radius: 3px; cursor: pointer; }
         .layer-btn:hover { background: #555; color: white; }
         .layer-btn.btn-danger:hover { background: var(--danger-color); }
@@ -452,7 +478,7 @@
         }
         .track-header-top {
             display: grid;
-            grid-template-columns: 18px 22px 22px minmax(0, 1fr);
+            grid-template-columns: 18px 22px 22px 22px minmax(0, 1fr);
             align-items: center;
             gap: 6px;
             width: 100%;
@@ -603,6 +629,16 @@
         .track-row.has-note {
             height: 52px;
         }
+        .track-row.is-hidden {
+            opacity: 0.45;
+        }
+        #tracks-container.hide-hidden-tracks .track-row.is-hidden {
+            display: none;
+        }
+        .track-row.is-hidden .track-header,
+        .track-row.is-hidden .track-frames {
+            opacity: 0.9;
+        }
         .track-row:hover { background: #222; }
         .track-row.active-track { background: rgba(0, 122, 204, 0.1); }
 
@@ -621,11 +657,12 @@
         }
         .track-object-name, .track-object-note { width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .track-object-note {
-            width: calc(100% - 52px);
-            margin-left: 52px;
+            width: calc(100% - 80px);
+            margin-left: 80px;
             line-height: 1.3;
         }
         .track-object-note { font-size: 10px; font-weight: normal; color: #8fa2b6; }
+        .track-object-note.is-filename { color: #556070; font-style: italic; }
         .track-row.active-track .track-object-note { color: #d4e9ff; }
         .track-row.track-reorder-source {
             opacity: 0.55;

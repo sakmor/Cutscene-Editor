@@ -43,6 +43,20 @@
                     <div id="object-list-container" class="list-container">
                         <ul id="object-list"></ul>
                     </div>
+                    <div id="hidden-object-list-section" style="margin-top: 8px;">
+                        <div class="hidden-object-list-header">
+                            <input id="hidden-object-list-toggle" type="checkbox" class="hidden-object-list-checkbox" checked aria-label="切換隱藏圖層顯示">
+                            <div class="hidden-object-list-title">隱藏圖層</div>
+                        </div>
+                        <div id="hidden-object-list-container" class="list-container">
+                            <ul id="hidden-object-list"></ul>
+                        </div>
+                        <div id="hidden-object-list-empty" class="hidden-object-list-empty">目前沒有隱藏圖層</div>
+                    </div>
+                    <div class="control-group">
+                        <label>圖層備註:</label>
+                        <textarea id="layer-note-input" rows="3" placeholder="輸入圖層備註"></textarea>
+                    </div>
                     <div id="spine-panel" style="display:none;">
                         <div class="control-group">
                             <label>Spine Animation:</label>
@@ -191,6 +205,10 @@
         </div>
     </div>
 
-        <script src="assets/js/cutscene-editor.bundle.js?v=20260323-1415"></script>
+        <script src="assets/js/app/01-core-state.js?v=20260327-1"></script>
+        <script src="assets/js/app/02-editor-ui.js?v=20260327-1"></script>
+        <script src="assets/js/app/03-objects-and-timeline.js?v=20260327-1"></script>
+        <script src="assets/js/app/04-snapshot-and-playback.js?v=20260327-1"></script>
+        <script src="assets/js/app/05-project-files.js?v=20260327-1"></script>
 </body>
 </html>

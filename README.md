@@ -228,3 +228,10 @@ tools/
   - `assets/js/cutscene-editor.bundle.js`
   - `assets/js/vendor/mp4-muxer.js`
   - `assets/js/vendor/ffmpeg/`
+
+## 最近更新
+
+- 在「隱藏圖層」標題前新增 checkbox，預設為勾選。
+- 勾選時會顯示下方 timeline 裡的隱藏 channel。
+- 取消勾選時會把下方的隱藏 channel 收起來，但不會刪除資料。
+- 物件右側的眼睛按鈕仍只控制畫布顯示 / 不顯示，不會移除 channel。

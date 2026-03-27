@@ -70,6 +70,10 @@
         const fileInput = document.getElementById('file-input');
         const spineInput = document.getElementById('spine-input');
         const objectListEl = document.getElementById('object-list');
+        const hiddenObjectListSection = document.getElementById('hidden-object-list-section');
+        const hiddenObjectListEl = document.getElementById('hidden-object-list');
+        const hiddenObjectListEmptyEl = document.getElementById('hidden-object-list-empty');
+        const hiddenObjectListToggleCheckbox = document.getElementById('hidden-object-list-toggle');
         const layerNoteInput = document.getElementById('layer-note-input');
         const propsPanel = document.getElementById('props-panel');
         const tintPanel = document.getElementById('tint-panel');
@@ -383,25 +387,41 @@
             const targetObj = getSelectedObjectData();
             return targetObj ? (targetObj.currentPose?.visible !== false) : true;
         };
+
+        hiddenObjectListSection?.classList.add('hidden-object-list-section');
+        if (hiddenObjectListToggleCheckbox) {
+            hiddenObjectListToggleCheckbox.checked = true;
+        }
         const getTrackVisibilityIcon = (isVisible) => isVisible
             ? `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"></path><circle cx="12" cy="12" r="3"></circle></svg>`
             : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18"></path><path d="M10.6 10.7a3 3 0 0 0 4 4"></path><path d="M9.4 5.5A11.4 11.4 0 0 1 12 5c6.5 0 10 7 10 7a18.8 18.8 0 0 1-4 4.9"></path><path d="M6.6 6.7C4 8.5 2 12 2 12s3.5 6 10 6a10.8 10.8 0 0 0 2.5-.3"></path></svg>`;
-        const toggleTrackObjectVisibility = (objId) => {
+        const setTrackObjectVisibility = (objId, nextVisible) => {
             const targetObj = animObjects.find(obj => obj.id === objId);
             if (!targetObj) return;
             if (selectedObjectId !== objId) {
                 selectObject(objId);
             }
-            const nextVisible = !isObjectTrackVisible(targetObj);
-            targetObj.trackVisible = nextVisible;
+            targetObj.trackVisible = !!nextVisible;
             if (targetObj.domWrapper?.dataset) {
-                targetObj.domWrapper.dataset.trackVisible = nextVisible ? 'true' : 'false';
+                targetObj.domWrapper.dataset.trackVisible = targetObj.trackVisible ? 'true' : 'false';
             }
             applyPoseToDOM(targetObj.domWrapper, targetObj.currentPose);
             if (selectedObjectId === objId) {
                 syncInputsWithState(targetObj.currentPose);
             }
-            updateGlobalTimeline();
+            updateUIState();
+        };
+        const toggleTrackObjectVisibility = (objId) => {
+            const targetObj = animObjects.find(obj => obj.id === objId);
+            if (!targetObj) return;
+            setTrackObjectVisibility(objId, !isObjectTrackVisible(targetObj));
+        };
+        const updateHiddenObjectListToggleButton = () => {
+            const showHiddenTracks = hiddenObjectListToggleCheckbox?.checked ?? true;
+            tracksContainer?.classList.toggle('hide-hidden-tracks', !showHiddenTracks);
+            if (hiddenObjectListToggleCheckbox) {
+                hiddenObjectListToggleCheckbox.setAttribute('aria-checked', showHiddenTracks ? 'true' : 'false');
+            }
         };
         const refreshTrackVisibilityIndicators = () => {
             animObjects.forEach((obj) => {
@@ -416,6 +436,8 @@
                 }
             });
         };
+        hiddenObjectListToggleCheckbox?.addEventListener('change', updateHiddenObjectListToggleButton);
+        updateHiddenObjectListToggleButton();
         /*
         const setupProjectFileToolbar = () => {
             const legacyLoadButton = jsonImportInput?.nextElementSibling;

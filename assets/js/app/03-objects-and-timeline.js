@@ -541,6 +541,79 @@
             }
         }
 
+        function renderObjectList() {
+            objectListEl.innerHTML = '';
+            if (hiddenObjectListEl) hiddenObjectListEl.innerHTML = '';
+
+            const visibleObjects = [];
+            const hiddenObjects = [];
+            for (let i = animObjects.length - 1; i >= 0; i--) {
+                const obj = animObjects[i];
+                if (isObjectTrackVisible(obj)) visibleObjects.push(obj);
+                else hiddenObjects.push(obj);
+            }
+
+            const buildListItem = (obj, hidden = false) => {
+                const li = document.createElement('li');
+                if (obj.id === selectedObjectId) li.className = 'active';
+
+                const info = document.createElement('div');
+                info.className = 'object-list-info';
+
+                const nameEl = document.createElement('span');
+                nameEl.className = 'obj-name';
+                nameEl.textContent = obj.name;
+                nameEl.title = getObjectDisplayTitle(obj);
+                info.appendChild(nameEl);
+
+                const noteSummary = getObjectNoteSummary(obj.note);
+                if (noteSummary) {
+                    li.classList.add('has-note');
+                    const noteEl = document.createElement('span');
+                    noteEl.className = 'obj-note';
+                    noteEl.textContent = noteSummary;
+                    noteEl.title = normalizeObjectNote(obj.note);
+                    info.appendChild(noteEl);
+                }
+
+                const actions = document.createElement('div');
+                actions.className = 'layer-actions';
+                if (hidden) {
+                    actions.innerHTML = `
+                        <button class="layer-btn" title="Show channel" onclick="event.stopPropagation(); setTrackObjectVisibility(${obj.id}, true);">Show</button>
+                        <button class="layer-btn btn-danger" title="Delete channel" onclick="event.stopPropagation(); deleteObject(${obj.id});">Del</button>
+                    `;
+                } else {
+                    actions.innerHTML = `
+                        <button class="layer-btn" title="Move layer up" onclick="event.stopPropagation(); moveLayer(${obj.id}, 1);">Up</button>
+                        <button class="layer-btn" title="Move layer down" onclick="event.stopPropagation(); moveLayer(${obj.id}, -1);">Down</button>
+                        <button class="layer-btn" title="Hide channel" onclick="event.stopPropagation(); toggleTrackObjectVisibility(${obj.id});">Hide</button>
+                        <button class="layer-btn btn-danger" title="Delete channel" onclick="event.stopPropagation(); deleteObject(${obj.id});">Del</button>
+                    `;
+                }
+
+                li.appendChild(info);
+                li.appendChild(actions);
+                li.onclick = () => selectObject(obj.id);
+                return li;
+            };
+
+            visibleObjects.forEach((obj) => {
+                objectListEl.appendChild(buildListItem(obj, false));
+            });
+
+            if (hiddenObjectListEl && hiddenObjectListSection) {
+                hiddenObjects.forEach((obj) => {
+                    hiddenObjectListEl.appendChild(buildListItem(obj, true));
+                });
+                if (hiddenObjectListEmptyEl) {
+                    hiddenObjectListEmptyEl.style.display = hiddenObjects.length > 0 ? 'none' : 'block';
+                }
+                hiddenObjectListSection.style.display = 'block';
+                updateHiddenObjectListToggleButton?.();
+            }
+        }
+
         function updateUIState() {
             renderObjectList();
 
@@ -552,8 +625,10 @@
                 objectSettingsPanel.style.display = (obj && (obj.type === SPINE_TYPE || obj.type === BLOCK_TYPE || obj.type === TEXT_TYPE)) ? '' : 'none';
             }
             if (obj) {
-                layerNoteInput.disabled = false;
-                layerNoteInput.value = obj.note || '';
+                if (layerNoteInput) {
+                    layerNoteInput.disabled = false;
+                    layerNoteInput.value = obj.note || '';
+                }
                 propsPanel.style.opacity = 1; propsPanel.style.pointerEvents = 'auto'; btnSnapshot.disabled = false;
                 tintPanel.style.opacity = 1; tintPanel.style.pointerEvents = 'auto';
                 const anyKfSelected = selectedKeyframeIndex !== null || selectedKeyframes.length > 0;
@@ -571,8 +646,10 @@
                     btnDeleteKf.style.display = 'none';
                 }
             } else {
-                layerNoteInput.value = '';
-                layerNoteInput.disabled = true;
+                if (layerNoteInput) {
+                    layerNoteInput.value = '';
+                    layerNoteInput.disabled = true;
+                }
                 propsPanel.style.opacity = 0.5; propsPanel.style.pointerEvents = 'none'; btnSnapshot.disabled = true;
                 tintPanel.style.opacity = 0.5; tintPanel.style.pointerEvents = 'none';
                 btnDeleteKf.style.display = 'none';
@@ -1089,10 +1166,13 @@
                 topRow.appendChild(nameWrap);
                 header.appendChild(topRow);
                 const noteSummary = getObjectNoteSummary(obj.note, 24);
-                if (noteSummary) {
+                const rawFilename = obj.assetPath ? obj.assetPath.split('/').pop() : null;
+                const assetFilename = !noteSummary && rawFilename && rawFilename !== obj.name ? rawFilename : null;
+                const subLabel = noteSummary || assetFilename;
+                if (subLabel) {
                     const noteEl = document.createElement('span');
-                    noteEl.className = 'track-object-note';
-                    noteEl.textContent = noteSummary;
+                    noteEl.className = 'track-object-note' + (assetFilename ? ' is-filename' : '');
+                    noteEl.textContent = subLabel;
                     header.appendChild(noteEl);
                 }
                 header.onclick   = () => selectObject(obj.id);
@@ -1104,7 +1184,8 @@
 
                 const row = document.createElement('div');
                 row.className   = 'track-row';
-                if (noteSummary) row.classList.add('has-note');
+                if (subLabel) row.classList.add('has-note');
+                if (!isObjectTrackVisible(obj)) row.classList.add('is-hidden');
                 row.dataset.objId = obj.id;
                 row.style.width = `${trackWidth + HEADER_WIDTH}px`;
                 if (obj.id === selectedObjectId) row.classList.add('active-track');

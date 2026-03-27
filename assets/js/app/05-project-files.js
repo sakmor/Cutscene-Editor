@@ -330,4 +330,5 @@
             startAutoBackupTimer();
         }
 
+        setupProjectFileToolbar();
         initializeProjectFileSystem();

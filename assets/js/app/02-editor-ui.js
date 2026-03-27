@@ -408,7 +408,7 @@
                 const imageAddWrapper = fileInput.parentElement;
                 const spineAddWrapper = spineInput.parentElement;
                 const layerListContainer = document.getElementById('object-list-container');
-                const noteGroup = layerNoteInput.closest('.control-group');
+                const noteGroup = layerNoteInput?.closest('.control-group');
                 const blockAddWrapper = document.createElement('div');
                 blockAddWrapper.className = 'btn-add-obj-wrapper';
                 const blockAddButton = document.createElement('button');
@@ -441,12 +441,15 @@
 
                 const listPanel = createSidebarSubpanel('layer-list', '圖層清單');
                 listPanel.body.appendChild(layerListContainer);
+                const hiddenListSection = document.getElementById('hidden-object-list-section');
+                if (hiddenListSection) listPanel.body.appendChild(hiddenListSection);
 
                 const notePanel = createSidebarSubpanel('layer-note', '圖層備註');
-                notePanel.body.appendChild(noteGroup);
+                if (noteGroup) notePanel.body.appendChild(noteGroup);
 
                 layersBody.innerHTML = '';
-                layersBody.append(addPanel.wrapper, listPanel.wrapper, notePanel.wrapper);
+                layersBody.append(addPanel.wrapper, listPanel.wrapper);
+                if (noteGroup) layersBody.append(notePanel.wrapper);
                 layersBody.dataset.subsectionsReady = 'true';
             }
 
@@ -687,7 +690,6 @@
         function zoomOut()   { setZoom(canvasZoom / ZOOM_STEP); }
         function resetZoom() { setZoom(1.0); }
 
-        setupProjectFileToolbar();
         buildProjectFileModal();
         setupSidebarSubsections();
         if (blockSizeInput && blockColorInput) {
@@ -1029,7 +1031,7 @@
             updateGlobalTimeline();
         }
 
-        layerNoteInput.addEventListener('input', () => {
+        layerNoteInput?.addEventListener('input', () => {
             const targetObj = getSelectedObjectData();
             if (!targetObj) return;
             targetObj.note = layerNoteInput.value;

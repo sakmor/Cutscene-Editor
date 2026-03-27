@@ -3658,10 +3658,13 @@
                 topRow.appendChild(nameWrap);
                 header.appendChild(topRow);
                 const noteSummary = getObjectNoteSummary(obj.note, 24);
-                if (noteSummary) {
+                const rawFilename = obj.assetPath ? obj.assetPath.split('/').pop() : null;
+                const assetFilename = !noteSummary && rawFilename && rawFilename !== obj.name ? rawFilename : null;
+                const subLabel = noteSummary || assetFilename;
+                if (subLabel) {
                     const noteEl = document.createElement('span');
-                    noteEl.className = 'track-object-note';
-                    noteEl.textContent = noteSummary;
+                    noteEl.className = 'track-object-note' + (assetFilename ? ' is-filename' : '');
+                    noteEl.textContent = subLabel;
                     header.appendChild(noteEl);
                 }
                 header.onclick   = () => selectObject(obj.id);
@@ -3678,7 +3681,7 @@
 
                 const row = document.createElement('div');
                 row.className   = 'track-row';
-                if (noteSummary) row.classList.add('has-note');
+                if (subLabel) row.classList.add('has-note');
                 row.dataset.objId = obj.id;
                 row.style.width = `${trackWidth + HEADER_WIDTH}px`;
                 if (obj.id === selectedObjectId) row.classList.add('active-track');
