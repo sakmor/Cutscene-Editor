@@ -35,6 +35,7 @@
             const exportData = animObjects.map(obj => ({
                 name: obj.name,
                 note: normalizeObjectNote(obj.note),
+                messageHistory: serializeMessageHistory(obj.messageHistory),
                 trackVisible: obj.trackVisible !== false,
                 type: obj.type || IMAGE_TYPE,
                 src: obj.type === IMAGE_TYPE ? obj.src : undefined,
@@ -70,7 +71,7 @@
 
             return {
                 project_type: 'PixelAnimator_NLE',
-                version: 7,
+                version: 9,
                 mask: outputMask.enabled ? { width: outputMask.width, height: outputMask.height } : null,
                 objects: exportData
             };
@@ -80,23 +81,91 @@
             return JSON.stringify(buildProjectPayloadV2(), null, 2);
         }
 
+        function inferImportedObjectType(obj = {}) {
+            const rawType = String(obj.type || obj.objectType || obj.kind || '').trim().toLowerCase();
+            if (rawType === CAMERA_TYPE || rawType === 'cam') return CAMERA_TYPE;
+            if (rawType === SPINE_TYPE || obj.spineData || obj.skeletonPath || obj.atlasPath || obj.rawData) return SPINE_TYPE;
+            if (rawType === BLOCK_TYPE || obj.blockData) return BLOCK_TYPE;
+            if (
+                rawType === TEXT_TYPE
+                || obj.textData
+                || Object.prototype.hasOwnProperty.call(obj, 'text')
+                || Object.prototype.hasOwnProperty.call(obj, 'fontSize')
+                || Object.prototype.hasOwnProperty.call(obj, 'fontFamily')
+                || Object.prototype.hasOwnProperty.call(obj, 'bitmapFont')
+                || (Array.isArray(obj.keyframes) && obj.keyframes.some(kf => Object.prototype.hasOwnProperty.call(kf || {}, 'text')))
+            ) return TEXT_TYPE;
+            if (rawType === IMAGE_TYPE || obj.src || obj.assetPath || obj.imageSrc || obj.imageData || obj.path) return IMAGE_TYPE;
+            return null;
+        }
+
+        function getImportedMessageHistory(objData = {}) {
+            return cloneMessageHistory(
+                objData.messageHistory
+                || objData.conversationHistory
+                || objData.chatHistory
+                || objData.messages
+                || []
+            );
+        }
+
+        function buildImportedSpineData(objData = {}) {
+            if (objData.spineData) return { ...objData.spineData };
+            return {
+                editorVersion: objData.editorVersion,
+                skeletonPath: objData.skeletonPath,
+                atlasPath: objData.atlasPath,
+                rawData: objData.rawData,
+                animationName: objData.animationName,
+                animationNames: objData.animationNames,
+                animationDuration: objData.animationDuration,
+                size: objData.size
+            };
+        }
+
+        function buildImportedBlockData(objData = {}) {
+            if (objData.blockData) return { ...objData.blockData };
+            return {
+                size: objData.size,
+                color: objData.color
+            };
+        }
+
+        function buildImportedTextData(objData = {}) {
+            if (objData.textData) return { ...objData.textData };
+            const legacyKeyframeText = Array.isArray(objData.keyframes)
+                ? objData.keyframes.find(kf => Object.prototype.hasOwnProperty.call(kf || {}, 'text'))?.text
+                : undefined;
+            return {
+                text: Object.prototype.hasOwnProperty.call(objData, 'text') ? objData.text : legacyKeyframeText,
+                size: objData.size ?? objData.fontSize,
+                lineHeight: objData.lineHeight,
+                letterSpacing: objData.letterSpacing,
+                color: objData.color,
+                fontFamily: objData.fontFamily,
+                align: objData.align,
+                bitmapFont: objData.bitmapFont || null
+            };
+        }
+
+        function buildImportedImageObjectData(objData = {}) {
+            return {
+                ...objData,
+                src: objData.src || objData.imageSrc || objData.imageData || '',
+                assetPath: objData.assetPath || objData.path || ''
+            };
+        }
+
         function validateImportedProjectDataV2(data) {
-            if (data.project_type !== 'PixelAnimator_NLE') {
+            const projectType = String(data.project_type || '').trim();
+            if (projectType && projectType !== 'PixelAnimator_NLE') {
                 throw new Error('Unsupported project JSON format.');
             }
             if (!Array.isArray(data.objects) || data.objects.length === 0) {
                 throw new Error('This JSON file does not contain any objects.');
             }
-
-            const isSupportedObject = (obj) => {
-                if (!obj) return false;
-                if ((obj.type || IMAGE_TYPE) === SPINE_TYPE) return !!obj.spineData;
-                if ((obj.type || IMAGE_TYPE) === BLOCK_TYPE) return true;
-                if ((obj.type || IMAGE_TYPE) === TEXT_TYPE) return !!obj.textData;
-                return !!obj.src;
-            };
-            if (!data.objects.every(isSupportedObject)) {
-                throw new Error('The imported JSON contains unsupported object data.');
+            if (!data.objects.some(obj => !!inferImportedObjectType(obj))) {
+                throw new Error('This JSON file does not contain any supported objects.');
             }
 
             return data.mask && Number.isFinite(data.mask.width) && Number.isFinite(data.mask.height)
@@ -116,13 +185,14 @@
             selectedKeyframeIndex = null;
             selectedKeyframes = [];
             updateMultiSelectUI();
-            playhead.style.display = 'none';
+            setElementDisplay(playhead, 'none');
             playState.currentTime = 0;
+            updateCanvasViewportTransform?.();
         }
 
         function restoreImportedObjectTrackVisibility(obj, trackVisible) {
             if (!obj) return;
-            obj.trackVisible = trackVisible !== false;
+            obj.trackVisible = isCameraObject(obj) ? true : trackVisible !== false;
             if (obj.domWrapper?.dataset) {
                 obj.domWrapper.dataset.trackVisible = obj.trackVisible ? 'true' : 'false';
             }
@@ -142,31 +212,78 @@
             outputMask = importedMask;
             updateCanvasMaskLayout();
 
-            for (const objData of data.objects) {
-                const objectType = objData.type || IMAGE_TYPE;
-                if (objectType === SPINE_TYPE) {
-                    const newObj = await addSpineObject({ ...objData.spineData, name: objData.name }, objData.keyframes || [], objData.note);
-                    restoreImportedObjectTrackVisibility(newObj, objData.trackVisible);
-                } else if (objectType === BLOCK_TYPE) {
-                    const newObj = addBlockObject(objData.blockData || {}, objData.note, objData.name || 'Block');
-                    newObj.keyframes = (objData.keyframes || []).map(normalizeKeyframe);
-                    restoreImportedObjectTrackVisibility(newObj, objData.trackVisible);
-                } else if (objectType === TEXT_TYPE) {
-                    const newObj = addTextObject(objData.textData || {}, objData.note, objData.name || buildTextObjectName(objData.textData?.text));
-                    newObj.keyframes = (objData.keyframes || []).map(normalizeKeyframe);
-                    restoreImportedObjectTrackVisibility(newObj, objData.trackVisible);
-                } else {
-                    const resolvedImage = await resolveImportedImageSource(objData);
-                    const newObj = addNewObject(
-                        objData.name,
-                        resolvedImage.displaySrc,
-                        objData.note,
-                        resolvedImage.storedSrc,
-                        resolvedImage.assetPath
-                    );
-                    newObj.keyframes = (objData.keyframes || []).map(normalizeKeyframe);
-                    restoreImportedObjectTrackVisibility(newObj, objData.trackVisible);
+            const importWarnings = [];
+            let loadedObjectCount = 0;
+            const previousSuppressState = suppressObjectAutoRefresh;
+            suppressObjectAutoRefresh = true;
+            try {
+                for (const objData of data.objects) {
+                    try {
+                        const objectType = inferImportedObjectType(objData);
+                        if (!objectType) {
+                            throw new Error('Unsupported object data.');
+                        }
+                        if (objectType === CAMERA_TYPE) {
+                            const newObj = addCameraObject({
+                                name: objData.name,
+                                currentPose: objData.currentPose
+                            }, objData.keyframes || [], objData.note);
+                            newObj.messageHistory = getImportedMessageHistory(objData);
+                            restoreImportedObjectTrackVisibility(newObj, objData.trackVisible);
+                            if (selectedObjectId === newObj.id) renderChatPanel(newObj);
+                        } else if (objectType === SPINE_TYPE) {
+                            const newObj = await addSpineObject({ ...buildImportedSpineData(objData), name: objData.name }, objData.keyframes || [], objData.note);
+                            newObj.messageHistory = getImportedMessageHistory(objData);
+                            restoreImportedObjectTrackVisibility(newObj, objData.trackVisible);
+                            if (selectedObjectId === newObj.id) renderChatPanel(newObj);
+                        } else if (objectType === BLOCK_TYPE) {
+                            const newObj = addBlockObject(buildImportedBlockData(objData), objData.note, objData.name || 'Block');
+                            newObj.messageHistory = getImportedMessageHistory(objData);
+                            newObj.keyframes = (objData.keyframes || []).map(normalizeKeyframe);
+                            restoreImportedObjectTrackVisibility(newObj, objData.trackVisible);
+                            if (selectedObjectId === newObj.id) renderChatPanel(newObj);
+                        } else if (objectType === TEXT_TYPE) {
+                            const importedTextData = buildImportedTextData(objData);
+                            const newObj = addTextObject(importedTextData, objData.note, objData.name || buildTextObjectName(importedTextData.text));
+                            newObj.messageHistory = getImportedMessageHistory(objData);
+                            newObj.keyframes = (objData.keyframes || []).map(normalizeKeyframe);
+                            restoreImportedObjectTrackVisibility(newObj, objData.trackVisible);
+                            if (selectedObjectId === newObj.id) renderChatPanel(newObj);
+                        } else {
+                            const resolvedImage = await resolveImportedImageSource(buildImportedImageObjectData(objData));
+                            const newObj = addNewObject(
+                                objData.name,
+                                resolvedImage.displaySrc,
+                                objData.note,
+                                resolvedImage.storedSrc,
+                                resolvedImage.assetPath
+                            );
+                            newObj.messageHistory = getImportedMessageHistory(objData);
+                            newObj.keyframes = (objData.keyframes || []).map(normalizeKeyframe);
+                            restoreImportedObjectTrackVisibility(newObj, objData.trackVisible);
+                            if (selectedObjectId === newObj.id) renderChatPanel(newObj);
+                        }
+                        loadedObjectCount += 1;
+                    } catch (err) {
+                        importWarnings.push(`${objData.name || '(unnamed object)'}: ${err?.message || String(err)}`);
+                    }
                 }
+            } finally {
+                suppressObjectAutoRefresh = previousSuppressState;
+            }
+
+            if (loadedObjectCount === 0) {
+                const details = importWarnings.length > 0 ? ` First error: ${importWarnings[0]}` : '';
+                throw new Error(`None of the objects in this file could be loaded.${details}`);
+            }
+            updateZIndices();
+            if (animObjects.length > 0) {
+                selectedObjectId = animObjects[animObjects.length - 1].id;
+            }
+            updateUIState();
+            if (importWarnings.length > 0) {
+                console.warn('Project import completed with skipped objects:', importWarnings);
+                alert(`Opened with ${importWarnings.length} skipped object(s). See console for details.`);
             }
 
             btnPlay.disabled = animObjects.length === 0;

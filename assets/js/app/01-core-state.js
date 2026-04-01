@@ -11,6 +11,7 @@
         let kfDrag = { isDragging: false, hasMoved: false, objId: null, kfIndex: null, startX: 0, startTime: 0, nodeEl: null, dragTargets: [] };
         let marqueeState = { isSelecting: false, hasMoved: false, additive: false, startX: 0, startY: 0, currentX: 0, currentY: 0, baseSelection: [] };
         let scrubState = { isScrubbing: false };
+        let suppressObjectAutoRefresh = false;
         let trackReorderDrag = { isDragging: false, hasMoved: false, objId: null, startY: 0, insertionIndex: -1 };
         let drag = { isDragging: false, sx: 0, sy: 0, objX: 0, objY: 0 };
         let timelinePanelResize = { isDragging: false, startY: 0, startHeight: 250 };
@@ -41,11 +42,13 @@
             hue: DEFAULT_HUE, brightness: DEFAULT_BRIGHTNESS, contrast: DEFAULT_CONTRAST,
             blendMode: DEFAULT_BLEND_MODE
         };
+        const DEFAULT_CAMERA_POSE = { ...DEFAULT_POSE };
         const DEFAULT_SPINE_SIZE = 320;
         const IMAGE_TYPE = 'image';
         const BLOCK_TYPE = 'block';
         const TEXT_TYPE = 'text';
         const SPINE_TYPE = 'spine';
+        const CAMERA_TYPE = 'camera';
         const spineRuntimeState = { loadedVersion: null, loadingVersion: null, promise: null };
         const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -128,6 +131,17 @@
         let textClearFontButton = null;
         let textBitmapFontInput = null;
         let textBitmapFontTarget = { mode: 'create', objId: null };
+        let chatPanel = null;
+        let chatPanelTitleEl = null;
+        let chatContextEl = null;
+        let chatLogEl = null;
+        let chatEmptyEl = null;
+        let chatRoleSelect = null;
+        let chatInput = null;
+        let chatSendButton = null;
+        let chatClearButton = null;
+        let chatPanelCurrentObjectId = null;
+        const chatDrafts = Object.create(null);
         let saveStatusEl = null;
         let projectFileModal = null;
         let projectFileModalSubtitle = null;
@@ -281,6 +295,24 @@
             };
         };
         const normalizeKeyframeText = (text) => String(text ?? '').replace(/\r\n/g, '\n');
+        const normalizeMessageHistoryEntry = (entry = {}) => {
+            const role = String(entry.role || 'user').trim().toLowerCase();
+            const normalizedRole = ['system', 'user', 'assistant', 'tool'].includes(role) ? role : 'user';
+            const content = String(entry.content ?? entry.message ?? entry.text ?? '').replace(/\r\n/g, '\n');
+            return {
+                role: normalizedRole,
+                content,
+                timestamp: getNum(entry.timestamp ?? entry.ts, Date.now())
+            };
+        };
+        const normalizeMessageHistory = (history = []) => {
+            if (!Array.isArray(history)) return [];
+            return history
+                .map(normalizeMessageHistoryEntry)
+                .filter(entry => entry.content.length > 0 || entry.role === 'system');
+        };
+        const cloneMessageHistory = (history = []) => normalizeMessageHistory(history).map(entry => ({ ...entry }));
+        const serializeMessageHistory = (history = []) => cloneMessageHistory(history);
         const cloneTextData = (textData = {}) => normalizeTextData(textData);
         const serializeTextData = (textData = {}) => {
             const normalized = normalizeTextData(textData);
@@ -316,6 +348,9 @@
             })
         });
         const getSelectedObjectData = () => animObjects.find(obj => obj.id === selectedObjectId);
+        const isCameraObject = (obj) => obj?.type === CAMERA_TYPE;
+        const getCurrentCameraObject = () => animObjects.find(obj => isCameraObject(obj)) || null;
+        const getCurrentCameraPose = () => getCurrentCameraObject()?.currentPose || DEFAULT_CAMERA_POSE;
         const clonePose = (pose = DEFAULT_POSE) => ({
             x: pose.x, y: pose.y, rot: pose.rot, scale: pose.scale, opacity: pose.opacity, visible: pose.visible !== false,
             ...normalizePoseEffects(pose)
@@ -326,6 +361,11 @@
                 normalized.text = normalizeKeyframeText(kf.text);
             }
             return normalized;
+        };
+        const setElementDisplay = (element, displayValue) => {
+            if (element?.style) {
+                element.style.display = displayValue;
+            }
         };
         const normalizePath = (path) => String(path || '').replace(/\\/g, '/');
         const stripExtension = (name) => String(name || '').replace(/\.[^.]+$/, '');
@@ -381,7 +421,7 @@
             button.addEventListener('click', onClick);
             return button;
         };
-        const isObjectTrackVisible = (obj) => obj?.trackVisible !== false;
+        const isObjectTrackVisible = (obj) => isCameraObject(obj) ? true : obj?.trackVisible !== false;
         const isObjectCurrentlyVisible = (obj) => isObjectTrackVisible(obj) && obj?.currentPose?.visible !== false;
         const getCurrentVisibleValue = () => {
             const targetObj = getSelectedObjectData();
@@ -398,6 +438,7 @@
         const setTrackObjectVisibility = (objId, nextVisible) => {
             const targetObj = animObjects.find(obj => obj.id === objId);
             if (!targetObj) return;
+            if (isCameraObject(targetObj)) return;
             if (selectedObjectId !== objId) {
                 selectObject(objId);
             }

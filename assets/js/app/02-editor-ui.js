@@ -189,7 +189,9 @@
         document.body.appendChild(tintFilterSvg);
 
         function getCanvasDisplayScale() {
-            return outputMask.enabled ? canvasZoom * canvasViewportBaseScale : canvasZoom;
+            const cameraPose = getCurrentCameraPose?.() || DEFAULT_CAMERA_POSE;
+            const cameraScale = Math.max(0.01, getNum(cameraPose?.scale, 1));
+            return (outputMask.enabled ? canvasZoom * canvasViewportBaseScale : canvasZoom) * cameraScale;
         }
 
         function clearOutputMask() {
@@ -210,12 +212,18 @@
         }
 
         function updateCanvasViewportTransform() {
+            const cameraPose = getCurrentCameraPose?.() || DEFAULT_CAMERA_POSE;
+            const cameraScale = Math.max(0.01, getNum(cameraPose?.scale, 1));
+            const cameraX = getNum(cameraPose?.x, 0);
+            const cameraY = getNum(cameraPose?.y, 0);
+            const cameraRot = getNum(cameraPose?.rot, 0);
+            const viewportScale = (outputMask.enabled ? canvasViewportBaseScale : canvasZoom) * cameraScale;
             if (outputMask.enabled) {
                 canvasMaskFrame.style.transform = `translate(-50%, -50%) scale(${canvasZoom})`;
-                canvasViewport.style.transform = `translate(-50%, -50%) scale(${canvasViewportBaseScale})`;
+                canvasViewport.style.transform = `translate(calc(-50% + ${cameraX}px), calc(-50% + ${cameraY}px)) rotate(${cameraRot}deg) scale(${viewportScale})`;
             } else {
                 canvasMaskFrame.style.transform = 'translate(-50%, -50%)';
-                canvasViewport.style.transform = `translate(-50%, -50%) scale(${canvasZoom})`;
+                canvasViewport.style.transform = `translate(calc(-50% + ${cameraX}px), calc(-50% + ${cameraY}px)) rotate(${cameraRot}deg) scale(${viewportScale})`;
             }
             zoomDisplay.innerText = `${Math.round(canvasZoom * 100)}%`;
         }
@@ -376,6 +384,137 @@
             document.body.classList.remove('is-dragging-floating-panel');
         }
 
+        const CHAT_ROLE_LABELS = {
+            user: '我',
+            assistant: '角色',
+            system: '系統',
+            tool: '工具'
+        };
+
+        function getChatRoleLabel(role) {
+            return CHAT_ROLE_LABELS[String(role || 'user').toLowerCase()] || '我';
+        }
+
+        function renderChatMessage(entry) {
+            const message = normalizeMessageHistoryEntry(entry);
+            const row = document.createElement('article');
+            row.className = `chat-message chat-role-${message.role}`;
+
+            const meta = document.createElement('div');
+            meta.className = 'chat-message-meta';
+
+            const roleEl = document.createElement('span');
+            roleEl.className = 'chat-message-role';
+            roleEl.textContent = getChatRoleLabel(message.role);
+
+            const timeEl = document.createElement('span');
+            timeEl.className = 'chat-message-time';
+            timeEl.textContent = formatLocalDateTime(message.timestamp);
+
+            const contentEl = document.createElement('div');
+            contentEl.className = 'chat-message-content';
+            contentEl.textContent = message.content;
+
+            meta.append(roleEl, timeEl);
+            row.append(meta, contentEl);
+            return row;
+        }
+
+        function syncChatComposerState(obj) {
+            const hasObject = !!obj;
+            if (chatRoleSelect) chatRoleSelect.disabled = !hasObject;
+            if (chatInput) chatInput.disabled = !hasObject;
+            if (chatSendButton) chatSendButton.disabled = !hasObject;
+            if (chatClearButton) chatClearButton.disabled = !hasObject;
+            if (chatContextEl) {
+                chatContextEl.textContent = hasObject
+                    ? `目前角色：${obj.name}`
+                    : '選擇一個角色後就可以開始記錄對話。';
+            }
+            if (chatPanelTitleEl) {
+                chatPanelTitleEl.textContent = hasObject
+                    ? `角色對話：${obj.name}`
+                    : '角色對話';
+            }
+        }
+
+        function renderChatPanel(obj) {
+            if (!chatPanel || !chatLogEl || !chatEmptyEl) return;
+
+            if (chatPanelCurrentObjectId !== null && chatInput) {
+                chatDrafts[chatPanelCurrentObjectId] = chatInput.value;
+            }
+
+            chatPanelCurrentObjectId = obj?.id ?? null;
+            syncChatComposerState(obj);
+
+            if (!obj) {
+                setElementDisplay(chatPanel, 'none');
+                chatLogEl.innerHTML = '';
+                chatEmptyEl.textContent = '先選一個角色，我們就能把對話存在它自己的紀錄裡。';
+                setElementDisplay(chatEmptyEl, 'block');
+                if (chatInput) chatInput.value = '';
+                return;
+            }
+
+            setElementDisplay(chatPanel, '');
+            const history = cloneMessageHistory(obj.messageHistory || []);
+            obj.messageHistory = history;
+            chatLogEl.innerHTML = '';
+            setElementDisplay(chatEmptyEl, history.length > 0 ? 'none' : 'block');
+            chatEmptyEl.textContent = history.length > 0 ? '' : `目前沒有「${obj.name}」的對話紀錄。`;
+
+            history.forEach((entry) => {
+                chatLogEl.appendChild(renderChatMessage(entry));
+            });
+
+            if (chatInput) {
+                chatInput.value = chatDrafts[obj.id] || '';
+            }
+
+            requestAnimationFrame(() => {
+                chatLogEl.scrollTop = chatLogEl.scrollHeight;
+            });
+        }
+
+        function appendChatMessage(role, content) {
+            const obj = getSelectedObjectData();
+            if (!obj) return false;
+
+            const nextContent = String(content ?? '').replace(/\r\n/g, '\n');
+            if (!nextContent.trim()) return false;
+
+            obj.messageHistory = cloneMessageHistory(obj.messageHistory);
+            obj.messageHistory.push(normalizeMessageHistoryEntry({
+                role,
+                content: nextContent,
+                timestamp: Date.now()
+            }));
+
+            chatDrafts[obj.id] = '';
+            renderChatPanel(obj);
+            return true;
+        }
+
+        function handleChatSend() {
+            const role = chatRoleSelect?.value || 'user';
+            if (!appendChatMessage(role, chatInput?.value || '')) {
+                if (chatInput) chatInput.focus();
+                return;
+            }
+            if (chatInput) chatInput.focus();
+        }
+
+        function clearChatHistory() {
+            const obj = getSelectedObjectData();
+            if (!obj) return;
+            if (!confirm(`要清空「${obj.name}」的對話紀錄嗎？`)) return;
+
+            obj.messageHistory = [];
+            chatDrafts[obj.id] = '';
+            renderChatPanel(obj);
+        }
+
         function initializeFloatingPanelDrag(panelEl) {
             if (!panelEl || panelEl.dataset.dragReady === 'true') return;
 
@@ -435,9 +574,17 @@
                 bitmapTextAddButton.textContent = '+ 匯入 FNT 文字';
                 bitmapTextAddButton.addEventListener('click', () => openBitmapFontPicker('create'));
                 bitmapTextAddWrapper.appendChild(bitmapTextAddButton);
+                const cameraAddWrapper = document.createElement('div');
+                cameraAddWrapper.className = 'btn-add-obj-wrapper';
+                const cameraAddButton = document.createElement('button');
+                cameraAddButton.type = 'button';
+                cameraAddButton.className = 'btn-add-obj';
+                cameraAddButton.textContent = '+ 新增攝影機軌';
+                cameraAddButton.addEventListener('click', () => createCameraTrack());
+                cameraAddWrapper.appendChild(cameraAddButton);
 
                 const addPanel = createSidebarSubpanel('layer-add', '新增物件');
-                addPanel.body.append(imageAddWrapper, textAddWrapper, bitmapTextAddWrapper, blockAddWrapper, spineAddWrapper);
+                addPanel.body.append(imageAddWrapper, textAddWrapper, bitmapTextAddWrapper, blockAddWrapper, spineAddWrapper, cameraAddWrapper);
 
                 const listPanel = createSidebarSubpanel('layer-list', '圖層清單');
                 listPanel.body.appendChild(layerListContainer);
@@ -459,12 +606,12 @@
 
                 objectSettingsPanel = createSidebarSubpanel('prop-object', '物件專屬設定').wrapper;
                 objectSettingsPanel.id = 'object-settings-panel';
-                objectSettingsPanel.style.display = 'none';
+                setElementDisplay(objectSettingsPanel, 'none');
                 const objectSettingsBody = objectSettingsPanel.querySelector('.subpanel-body');
 
                 blockPanel = document.createElement('div');
                 blockPanel.id = 'block-panel';
-                blockPanel.style.display = 'none';
+                setElementDisplay(blockPanel, 'none');
                 blockPanel.innerHTML = `
                     <div class="control-group">
                         <label>方塊尺寸：</label>
@@ -480,7 +627,7 @@
 
                 textPanel = document.createElement('div');
                 textPanel.id = 'text-panel';
-                textPanel.style.display = 'none';
+                setElementDisplay(textPanel, 'none');
                 textPanel.innerHTML = `
                     <div class="control-group">
                         <label>文字內容：</label>
@@ -545,9 +692,80 @@
                 const effectsPanel = createSidebarSubpanel('prop-effects', '外觀效果');
                 effectsPanel.body.appendChild(tintPanel);
 
+                chatPanel = createSidebarSubpanel('prop-chat', '角色對話');
+                chatPanel.wrapper.id = 'chat-panel';
+                setElementDisplay(chatPanel.wrapper, 'none');
+                chatPanel.wrapper.classList.add('chat-panel');
+                chatPanelTitleEl = chatPanel.wrapper.querySelector('.subpanel-title');
+
+                chatContextEl = document.createElement('div');
+                chatContextEl.className = 'chat-context';
+                chatContextEl.textContent = '選擇一個角色後就可以開始記錄對話。';
+
+                chatLogEl = document.createElement('div');
+                chatLogEl.className = 'chat-log';
+
+                chatEmptyEl = document.createElement('div');
+                chatEmptyEl.className = 'chat-empty';
+                chatEmptyEl.textContent = '目前還沒有對話紀錄。';
+
+                const composer = document.createElement('div');
+                composer.className = 'chat-composer';
+
+                const roleRow = document.createElement('div');
+                roleRow.className = 'chat-role-row';
+
+                const roleLabel = document.createElement('label');
+                roleLabel.textContent = '發話者';
+                roleLabel.setAttribute('for', 'chat-role-select');
+
+                chatRoleSelect = document.createElement('select');
+                chatRoleSelect.id = 'chat-role-select';
+                chatRoleSelect.innerHTML = `
+                    <option value="user">我</option>
+                    <option value="assistant">角色</option>
+                    <option value="system">系統</option>
+                `;
+
+                roleRow.append(roleLabel, chatRoleSelect);
+
+                chatInput = document.createElement('textarea');
+                chatInput.rows = 3;
+                chatInput.placeholder = '輸入訊息，Enter 送出，Shift+Enter 換行';
+
+                const chatActions = document.createElement('div');
+                chatActions.className = 'chat-actions';
+
+                chatClearButton = document.createElement('button');
+                chatClearButton.type = 'button';
+                chatClearButton.className = 'chat-clear-btn';
+                chatClearButton.textContent = '清空紀錄';
+
+                chatSendButton = document.createElement('button');
+                chatSendButton.type = 'button';
+                chatSendButton.className = 'chat-send-btn';
+                chatSendButton.textContent = '送出訊息';
+
+                chatActions.append(chatClearButton, chatSendButton);
+                composer.append(roleRow, chatInput, chatActions);
+                chatPanel.body.append(chatContextEl, chatLogEl, chatEmptyEl, composer);
+
                 propertiesBody.innerHTML = '';
-                propertiesBody.append(outputPanel.wrapper, transformPanel.wrapper, effectsPanel.wrapper, objectSettingsPanel);
+                propertiesBody.append(outputPanel.wrapper, transformPanel.wrapper, effectsPanel.wrapper, objectSettingsPanel, chatPanel.wrapper);
                 propertiesBody.dataset.subsectionsReady = 'true';
+
+                chatSendButton.addEventListener('click', handleChatSend);
+                chatClearButton.addEventListener('click', clearChatHistory);
+                chatInput.addEventListener('keydown', (e) => {
+                    if (e.isComposing || e.key !== 'Enter' || e.shiftKey) return;
+                    e.preventDefault();
+                    handleChatSend();
+                });
+                chatInput.addEventListener('input', () => {
+                    if (chatPanelCurrentObjectId !== null) {
+                        chatDrafts[chatPanelCurrentObjectId] = chatInput.value;
+                    }
+                });
             }
 
             if (!document.getElementById('sidebar-section-snapshot')?.dataset.subsectionsReady) {
@@ -564,7 +782,7 @@
 
                 const offsetPanel = createSidebarSubpanel('snapshot-offset', '影格 Offset');
                 offsetPanel.wrapper.classList.add('floating-keyframe-panel', 'floating-keyframe-offset-panel');
-                offsetPanel.wrapper.style.display = 'none';
+                setElementDisplay(offsetPanel.wrapper, 'none');
                 offsetPanel.body.appendChild(keyframeOffsetPanel);
                 keyframeOffsetFloatingPanel = offsetPanel.wrapper;
 
@@ -671,10 +889,14 @@
 
         function finalizeNewObject(newObj) {
             newObj.trackVisible = newObj.trackVisible !== false;
+            newObj.messageHistory = cloneMessageHistory(newObj.messageHistory);
             if (newObj.domWrapper?.dataset) {
                 newObj.domWrapper.dataset.trackVisible = newObj.trackVisible ? 'true' : 'false';
             }
             animObjects.push(newObj);
+            if (suppressObjectAutoRefresh) {
+                return newObj;
+            }
             updateZIndices();
             updateUIState();
             selectObject(newObj.id);
@@ -716,7 +938,7 @@
         textBitmapFontInput.className = 'object-file-input';
         textBitmapFontInput.accept = '.fnt,.png,.jpg,.jpeg,.webp';
         textBitmapFontInput.multiple = true;
-        textBitmapFontInput.style.display = 'none';
+            setElementDisplay(textBitmapFontInput, 'none');
         document.body.appendChild(textBitmapFontInput);
         textBitmapFontInput.addEventListener('change', async (e) => {
             const files = Array.from(e.target.files || []);
@@ -965,6 +1187,7 @@
                     targetObj.currentPose = { ...tempPose };
                     applyPoseToDOM(targetObj.domWrapper, tempPose);
                     refreshTrackVisibilityIndicators();
+                    updateCanvasViewportTransform();
                 }
             });
         });

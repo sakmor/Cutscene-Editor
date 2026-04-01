@@ -47,7 +47,9 @@
             selectedKeyframeIndex = null;
             btnSnapshot.innerText = '📸 記錄為新影格';
             btnSnapshot.classList.remove('update-mode');
-            updateHint.style.display = 'none';
+            if (updateHint) {
+                setElementDisplay(updateHint, 'none');
+            }
             intervalInput.value = 0.5;
         }
 
@@ -103,7 +105,9 @@
             btnSnapshot.classList.add('update-mode');
             
             updateUIState(); 
-            updateHint.style.display = 'block';
+            if (updateHint) {
+                setElementDisplay(updateHint, 'block');
+            }
         }
 
         function exitEditingFrameMode() {
@@ -281,13 +285,16 @@
             }
 
             playState.isPlaying = true;
-            btnPlay.style.display = 'none'; btnStop.style.display = 'block';
+            setElementDisplay(btnPlay, 'none');
+            setElementDisplay(btnStop, 'block');
             
             canvas.style.pointerEvents = 'none'; propsPanel.parentElement.style.opacity = 0.4;
             document.querySelectorAll('.panel-section button:not(.btn-play):not(.btn-danger):not(.section-toggle):not(.subsection-toggle)').forEach(b => b.disabled = true);
             exitEditingFrameMode();
 
-            playhead.style.display = 'block';
+            if (playhead) {
+                setElementDisplay(playhead, 'block');
+            }
             
             // [修復 Bug 3] 扣除已經播放過的時間
             playState.startTime = performance.now() - (playState.currentTime * 1000);
@@ -297,7 +304,8 @@
         function stopAnimation() {
             if (!playState.isPlaying) return;
             playState.isPlaying = false;
-            btnPlay.style.display = 'block'; btnStop.style.display = 'none';
+            setElementDisplay(btnPlay, 'block');
+            setElementDisplay(btnStop, 'none');
             cancelAnimationFrame(playState.animationFrameId);
 
             canvas.style.pointerEvents = 'auto'; propsPanel.parentElement.style.opacity = 1;
@@ -340,6 +348,7 @@
                 }
             });
             refreshTrackVisibilityIndicators();
+            updateCanvasViewportTransform();
 
             if (t_app >= playState.totalDuration) {
                 playState.currentTime = playState.totalDuration;

@@ -22,6 +22,7 @@
                 type: IMAGE_TYPE,
                 name: name,
                 note: normalizeObjectNote(note),
+                messageHistory: [],
                 src: storedSrc || imageSrc,
                 assetPath: normalizePath(assetPath || buildDefaultAssetPath(name)),
                 domWrapper: wrapper,
@@ -56,6 +57,7 @@
                 type: BLOCK_TYPE,
                 name,
                 note: normalizeObjectNote(note),
+                messageHistory: [],
                 domWrapper: wrapper,
                 blockElement,
                 blockData: normalizeBlockData(blockData),
@@ -83,6 +85,7 @@
                 type: TEXT_TYPE,
                 name: name || buildTextObjectName(normalizedTextData.text),
                 note: normalizeObjectNote(note),
+                messageHistory: [],
                 domWrapper: wrapper,
                 textElement,
                 textData: cloneTextData(normalizedTextData),
@@ -228,6 +231,7 @@
                 type: SPINE_TYPE,
                 name: spineData.name || 'Spine Object',
                 note: normalizeObjectNote(note || spineData.note),
+                messageHistory: [],
                 domWrapper: wrapper,
                 currentPose: clonePose(),
                 keyframes: keyframes.map(normalizeKeyframe),
@@ -265,10 +269,55 @@
             return finalizeNewObject(newObj);
         }
 
+        function addCameraObject(cameraData = {}, keyframes = [], note = '') {
+            const existingCamera = animObjects.find(obj => obj.type === CAMERA_TYPE);
+            if (existingCamera) {
+                existingCamera.name = cameraData.name || existingCamera.name || 'Camera';
+                existingCamera.note = normalizeObjectNote(note || cameraData.note || existingCamera.note);
+                if (Array.isArray(keyframes) && keyframes.length > 0) {
+                    existingCamera.keyframes = keyframes.map(normalizeKeyframe);
+                }
+                existingCamera.currentPose = clonePose(cameraData.currentPose || existingCamera.currentPose || DEFAULT_CAMERA_POSE);
+                applyPoseToDOM(existingCamera.domWrapper, existingCamera.currentPose);
+                updateUIState();
+                selectObject(existingCamera.id);
+                return existingCamera;
+            }
+
+            const objId = createObjectId();
+            const wrapper = createObjectWrapper(objId, 'camera-object');
+            setElementDisplay(wrapper, 'none');
+            canvasViewport.appendChild(wrapper);
+
+            const newObj = {
+                id: objId,
+                type: CAMERA_TYPE,
+                name: cameraData.name || 'Camera',
+                note: normalizeObjectNote(note || cameraData.note),
+                messageHistory: [],
+                domWrapper: wrapper,
+                currentPose: clonePose(cameraData.currentPose || DEFAULT_CAMERA_POSE),
+                keyframes: Array.isArray(keyframes) ? keyframes.map(normalizeKeyframe) : []
+            };
+
+            applyPoseToDOM(wrapper, newObj.currentPose);
+            return finalizeNewObject(newObj);
+        }
+
+        function createCameraTrack() {
+            const cameraObj = animObjects.find(obj => obj.type === CAMERA_TYPE);
+            if (cameraObj) {
+                selectObject(cameraObj.id);
+                return cameraObj;
+            }
+            return addCameraObject({ name: 'Camera' });
+        }
+
         function updateZIndices() { animObjects.forEach((obj, i) => obj.domWrapper.style.zIndex = i + 2); }
         function moveLayer(objId, direction) {
             const index = animObjects.findIndex(obj => obj.id === objId);
             if (index < 0) return;
+            if (animObjects[index]?.type === CAMERA_TYPE) return;
             const newIndex = index + direction;
             if (newIndex < 0 || newIndex >= animObjects.length) return; 
             [animObjects[index], animObjects[newIndex]] = [animObjects[newIndex], animObjects[index]];
@@ -287,6 +336,7 @@
         async function duplicateObject(objId) {
             const sourceObj = animObjects.find(obj => obj.id === objId);
             if (!sourceObj) return null;
+            if (sourceObj.type === CAMERA_TYPE) return null;
 
             const duplicatedName = getDuplicatedObjectName(sourceObj.name);
             const clonedKeyframes = (sourceObj.keyframes || []).map(kf => ({
@@ -319,6 +369,7 @@
             if (!newObj) return null;
 
             newObj.note = normalizeObjectNote(sourceObj.note);
+            newObj.messageHistory = cloneMessageHistory(sourceObj.messageHistory);
             newObj.keyframes = clonedKeyframes;
             newObj.currentPose = clonePose(sourceObj.currentPose || DEFAULT_POSE);
             newObj.trackVisible = sourceObj.trackVisible !== false;
@@ -417,6 +468,7 @@
             targetObj?.spineElement?.dispose?.();
             targetObj?.domWrapper?.tintFilterNode?.remove?.();
             animObjects = animObjects.filter(obj => obj.id !== objId);
+            delete chatDrafts[objId];
             document.getElementById(`obj-wrap-${objId}`)?.remove();
             if (selectedObjectId === objId) selectedObjectId = null;
             updateZIndices(); updateUIState();
@@ -440,13 +492,14 @@
         }
 
         function updateSpinePanel(obj) {
+            if (!spinePanel || !spineAnimationSelect) return;
             if (!obj || obj.type !== SPINE_TYPE) {
-                spinePanel.style.display = 'none';
+                setElementDisplay(spinePanel, 'none');
                 spineAnimationSelect.innerHTML = '';
                 return;
             }
 
-            spinePanel.style.display = 'block';
+            setElementDisplay(spinePanel, 'block');
             const animationNames = obj.spineData?.animationNames || [];
             if (animationNames.length === 0) {
                 spineAnimationSelect.disabled = true;
@@ -466,12 +519,12 @@
         function updateBlockPanel(obj) {
             if (!blockPanel || !blockSizeInput || !blockColorInput) return;
             if (!obj || obj.type !== BLOCK_TYPE) {
-                blockPanel.style.display = 'none';
+                setElementDisplay(blockPanel, 'none');
                 return;
             }
 
             obj.blockData = normalizeBlockData(obj.blockData);
-            blockPanel.style.display = 'block';
+            setElementDisplay(blockPanel, 'block');
             blockSizeInput.value = Math.round(obj.blockData.size);
             blockColorInput.value = obj.blockData.color;
         }
@@ -479,12 +532,12 @@
         function updateTextPanel(obj) {
             if (!textPanel || !textContentInput || !textSizeInput || !textLineHeightInput || !textLetterSpacingInput || !textAlignInput || !textColorInput || !textFontFamilyInput || !textBitmapFontStatus || !textClearFontButton) return;
             if (!obj || obj.type !== TEXT_TYPE) {
-                textPanel.style.display = 'none';
+                setElementDisplay(textPanel, 'none');
                 return;
             }
 
             obj.textData = normalizeTextData(obj.textData);
-            textPanel.style.display = 'block';
+            setElementDisplay(textPanel, 'block');
             textContentInput.value = obj.textData.text;
             textSizeInput.value = Math.round(obj.textData.size);
             textLineHeightInput.value = Math.round(obj.textData.lineHeight);
@@ -545,10 +598,12 @@
             objectListEl.innerHTML = '';
             if (hiddenObjectListEl) hiddenObjectListEl.innerHTML = '';
 
+            const cameraObject = animObjects.find(isCameraObject) || null;
             const visibleObjects = [];
             const hiddenObjects = [];
             for (let i = animObjects.length - 1; i >= 0; i--) {
                 const obj = animObjects[i];
+                if (isCameraObject(obj)) continue;
                 if (isObjectTrackVisible(obj)) visibleObjects.push(obj);
                 else hiddenObjects.push(obj);
             }
@@ -556,6 +611,7 @@
             const buildListItem = (obj, hidden = false) => {
                 const li = document.createElement('li');
                 if (obj.id === selectedObjectId) li.className = 'active';
+                if (isCameraObject(obj)) li.classList.add('camera-track');
 
                 const info = document.createElement('div');
                 info.className = 'object-list-info';
@@ -578,7 +634,11 @@
 
                 const actions = document.createElement('div');
                 actions.className = 'layer-actions';
-                if (hidden) {
+                if (isCameraObject(obj)) {
+                    actions.innerHTML = `
+                        <button class="layer-btn btn-danger" title="Delete camera track" onclick="event.stopPropagation(); deleteObject(${obj.id});">Del</button>
+                    `;
+                } else if (hidden) {
                     actions.innerHTML = `
                         <button class="layer-btn" title="Show channel" onclick="event.stopPropagation(); setTrackObjectVisibility(${obj.id}, true);">Show</button>
                         <button class="layer-btn btn-danger" title="Delete channel" onclick="event.stopPropagation(); deleteObject(${obj.id});">Del</button>
@@ -598,6 +658,9 @@
                 return li;
             };
 
+            if (cameraObject) {
+                objectListEl.appendChild(buildListItem(cameraObject, false));
+            }
             visibleObjects.forEach((obj) => {
                 objectListEl.appendChild(buildListItem(obj, false));
             });
@@ -607,9 +670,9 @@
                     hiddenObjectListEl.appendChild(buildListItem(obj, true));
                 });
                 if (hiddenObjectListEmptyEl) {
-                    hiddenObjectListEmptyEl.style.display = hiddenObjects.length > 0 ? 'none' : 'block';
+                    setElementDisplay(hiddenObjectListEmptyEl, hiddenObjects.length > 0 ? 'none' : 'block');
                 }
-                hiddenObjectListSection.style.display = 'block';
+                setElementDisplay(hiddenObjectListSection, 'block');
                 updateHiddenObjectListToggleButton?.();
             }
         }
@@ -622,8 +685,9 @@
             updateBlockPanel(obj);
             updateTextPanel(obj);
             if (objectSettingsPanel) {
-                objectSettingsPanel.style.display = (obj && (obj.type === SPINE_TYPE || obj.type === BLOCK_TYPE || obj.type === TEXT_TYPE)) ? '' : 'none';
+                setElementDisplay(objectSettingsPanel, (obj && (obj.type === SPINE_TYPE || obj.type === BLOCK_TYPE || obj.type === TEXT_TYPE)) ? '' : 'none');
             }
+            renderChatPanel(obj);
             if (obj) {
                 if (layerNoteInput) {
                     layerNoteInput.disabled = false;
@@ -632,8 +696,8 @@
                 propsPanel.style.opacity = 1; propsPanel.style.pointerEvents = 'auto'; btnSnapshot.disabled = false;
                 tintPanel.style.opacity = 1; tintPanel.style.pointerEvents = 'auto';
                 const anyKfSelected = selectedKeyframeIndex !== null || selectedKeyframes.length > 0;
-                if (anyKfSelected) {
-                    btnDeleteKf.style.display = 'block';
+                if (btnDeleteKf && anyKfSelected) {
+                    setElementDisplay(btnDeleteKf, 'block');
                     btnDeleteKf.innerText = selectedKeyframes.length > 1
                         ? `Delete ${selectedKeyframes.length} keyframes`
                         : 'Delete keyframe';
@@ -642,8 +706,8 @@
                         ? `🗑 刪除 ${selectedKeyframes.length} 個影格`
                         : '🗑 刪除此影格';
                     */
-                } else {
-                    btnDeleteKf.style.display = 'none';
+                } else if (btnDeleteKf) {
+                    setElementDisplay(btnDeleteKf, 'none');
                 }
             } else {
                 if (layerNoteInput) {
@@ -652,7 +716,9 @@
                 }
                 propsPanel.style.opacity = 0.5; propsPanel.style.pointerEvents = 'none'; btnSnapshot.disabled = true;
                 tintPanel.style.opacity = 0.5; tintPanel.style.pointerEvents = 'none';
-                btnDeleteKf.style.display = 'none';
+                if (btnDeleteKf) {
+                    setElementDisplay(btnDeleteKf, 'none');
+                }
                 if (selectedKeyframes.length === 0) {
                     exitEditingFrameMode();
                 }
@@ -662,17 +728,22 @@
             updateTimelineNavigationButtons();
             updateKeyframeOffsetUI();
             updateGlobalTimeline();
+            updateCanvasViewportTransform?.();
         }
 
         function updateMultiSelectUI() {
+            if (!multiSelectDisplay) {
+                updateKeyframeOffsetUI();
+                return;
+            }
             if (selectedKeyframes.length > 1) {
-                multiSelectDisplay.style.display = 'inline';
+                setElementDisplay(multiSelectDisplay, 'inline');
                 multiSelectDisplay.innerText = `Selected ${selectedKeyframes.length} keyframes`;
                 /*
                 multiSelectDisplay.innerText = `● 已複選 ${selectedKeyframes.length} 個影格`;
                 */
             } else {
-                multiSelectDisplay.style.display = 'none';
+                setElementDisplay(multiSelectDisplay, 'none');
             }
             updateKeyframeOffsetUI();
         }
@@ -684,9 +755,9 @@
             const selectionCount = selection.length;
             const hasMultiSelection = selectionCount > 1;
             if (keyframeOffsetFloatingPanel) {
-                keyframeOffsetFloatingPanel.style.display = hasMultiSelection ? '' : 'none';
+                setElementDisplay(keyframeOffsetFloatingPanel, hasMultiSelection ? '' : 'none');
             }
-            keyframeOffsetPanel.style.display = 'grid';
+            setElementDisplay(keyframeOffsetPanel, 'grid');
             applyKeyframeOffsetBtn.disabled = !hasMultiSelection;
 
             if (!hasMultiSelection) {
@@ -920,8 +991,9 @@
         }
 
         function updateTimelineSelectionBox() {
+            if (!timelineSelectionBox) return;
             const rect = getMarqueeRect();
-            timelineSelectionBox.style.display = marqueeState.isSelecting ? 'block' : 'none';
+            setElementDisplay(timelineSelectionBox, marqueeState.isSelecting ? 'block' : 'none');
             if (!marqueeState.isSelecting) return;
             timelineSelectionBox.style.left = `${rect.left}px`;
             timelineSelectionBox.style.top = `${rect.top}px`;
@@ -1005,7 +1077,9 @@
         function finishMarqueeSelection() {
             if (!marqueeState.isSelecting) return;
             marqueeState.isSelecting = false;
-            timelineSelectionBox.style.display = 'none';
+            if (timelineSelectionBox) {
+                setElementDisplay(timelineSelectionBox, 'none');
+            }
             if (selectedKeyframes.length > 0) {
                 selectedKeyframeIndex = null;
                 syncSelectedObjectFromKeyframes();
@@ -1097,9 +1171,68 @@
             const trackWidth = Math.max(800, timeToTimelineX(maxTime));
 
             buildRuler(trackWidth, maxTime);
+            const cameraObject = animObjects.find(isCameraObject) || null;
+            const timelineObjects = animObjects.filter(obj => !isCameraObject(obj));
 
-            for (let i = animObjects.length - 1; i >= 0; i--) {
-                const obj = animObjects[i];
+            if (cameraObject) {
+                const obj = cameraObject;
+
+                const header = document.createElement('div');
+                header.className = 'track-header track-object-header camera-track-header';
+                header.dataset.objId = obj.id;
+                header.title = getObjectDisplayTitle(obj);
+
+                const topRow = document.createElement('div');
+                topRow.className = 'track-header-top';
+
+                const nameWrap = document.createElement('div');
+                nameWrap.className = 'track-object-name-wrap';
+                const nameEl = document.createElement('span');
+                nameEl.className = 'track-object-name';
+                nameEl.textContent = obj.name;
+                nameWrap.appendChild(nameEl);
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.type = 'button';
+                deleteBtn.className = 'track-duplicate-btn btn-danger';
+                deleteBtn.title = 'Delete camera track';
+                deleteBtn.setAttribute('aria-label', `Delete ${obj.name}`);
+                deleteBtn.textContent = 'Del';
+                deleteBtn.onclick = (event) => {
+                    event.stopPropagation();
+                    deleteObject(obj.id);
+                };
+
+                topRow.appendChild(deleteBtn);
+                topRow.appendChild(nameWrap);
+                header.appendChild(topRow);
+
+                const noteSummary = getObjectNoteSummary(obj.note, 24);
+                if (noteSummary) {
+                    const noteEl = document.createElement('span');
+                    noteEl.className = 'track-object-note';
+                    noteEl.textContent = noteSummary;
+                    header.appendChild(noteEl);
+                }
+                header.onclick = () => selectObject(obj.id);
+
+                const framesArea = document.createElement('div');
+                framesArea.className = 'track-frames';
+                framesArea.style.width = `${trackWidth}px`;
+                obj.keyframes.forEach((kf, idx) => framesArea.appendChild(buildKfNode(kf, idx, obj)));
+
+                const row = document.createElement('div');
+                row.className = 'track-row camera-track-row';
+                row.dataset.objId = obj.id;
+                row.style.width = `${trackWidth + HEADER_WIDTH}px`;
+                if (obj.id === selectedObjectId) row.classList.add('active-track');
+                row.appendChild(header);
+                row.appendChild(framesArea);
+                tracksContainer.appendChild(row);
+            }
+
+            for (let i = timelineObjects.length - 1; i >= 0; i--) {
+                const obj = timelineObjects[i];
 
                 const header = document.createElement('div');
                 header.className = 'track-header track-object-header';
@@ -1195,14 +1328,16 @@
                 tracksContainer.appendChild(row);
             }
 
-            if (playhead.style.display !== 'none') updatePlayheadPosition();
+            if (playhead && playhead.style.display !== 'none') updatePlayheadPosition();
         }
 
         // --- 手動刷洗時間軸 (Scrubbing) ---
         rulerRow.addEventListener('mousedown', (e) => {
             if (playState.isPlaying || animObjects.length === 0) return;
             scrubState.isScrubbing = true;
-            scrubTimeDisplay.style.display = 'block';
+            if (scrubTimeDisplay) {
+                setElementDisplay(scrubTimeDisplay, 'block');
+            }
             exitEditingFrameMode(); 
             handleScrub(e);
         });
@@ -1229,9 +1364,13 @@
 
         function seekToTime(time) {
             playState.currentTime = time;
-            playhead.style.display = 'block';
+            if (playhead) {
+                setElementDisplay(playhead, 'block');
+            }
             updatePlayheadPosition();
-            scrubTimeDisplay.innerText = `${time.toFixed(2)}s`;
+            if (scrubTimeDisplay) {
+                scrubTimeDisplay.innerText = `${time.toFixed(2)}s`;
+            }
 
             animObjects.forEach(obj => {
                 if (obj.keyframes.length === 0) return;
@@ -1243,6 +1382,7 @@
                 if (obj.id === selectedObjectId && selectedKeyframeIndex === null) syncInputsWithState(pose);
             });
             refreshTrackVisibilityIndicators();
+            updateCanvasViewportTransform();
         }
 
         // --- 全域事件監聽 (拖曳與刷洗) ---
@@ -1295,7 +1435,9 @@
         document.addEventListener('mouseup', (e) => {
             if (scrubState.isScrubbing) {
                 scrubState.isScrubbing = false;
-                scrubTimeDisplay.style.display = 'none';
+                if (scrubTimeDisplay) {
+                    setElementDisplay(scrubTimeDisplay, 'none');
+                }
             }
 
             if (trackReorderDrag.isDragging) {
