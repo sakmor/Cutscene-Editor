@@ -1,0 +1,23 @@
+info face="電擊倍" size=119 bold=0 italic=0 charset="32,43-46,48-57,120,20493,25802,38651" unicode=1 stretchH=100 smooth=1 aa=1 padding=1,1,1,1 spacing=1,1 outline=0
+common lineHeight=130 base=92 scaleW=499 scaleH=337 pages=1 packed=0 alphaChnl=0 redChnl=4 greenChnl=4 blueChnl=4
+page id=0 file="電擊倍.png"
+chars count=19
+char id=32 x=0 y=0 width=0 height=0 xoffset=0 yoffset=0 xadvance=34 page=0 chnl=15
+char id=43 x=159 y=233 width=69 height=82 xoffset=-1 yoffset=34 xadvance=67 page=0 chnl=15
+char id=44 x=468 y=0 width=31 height=52 xoffset=0 yoffset=76 xadvance=30 page=0 chnl=15
+char id=45 x=229 y=233 width=54 height=36 xoffset=-1 yoffset=57 xadvance=52 page=0 chnl=15
+char id=46 x=468 y=53 width=30 height=40 xoffset=0 yoffset=77 xadvance=29 page=0 chnl=15
+char id=48 x=359 y=0 width=67 height=106 xoffset=0 yoffset=10 xadvance=67 page=0 chnl=15
+char id=49 x=427 y=0 width=40 height=106 xoffset=0 yoffset=10 xadvance=40 page=0 chnl=15
+char id=50 x=345 y=126 width=67 height=104 xoffset=2 yoffset=12 xadvance=71 page=0 chnl=15
+char id=51 x=413 y=126 width=66 height=104 xoffset=2 yoffset=12 xadvance=70 page=0 chnl=15
+char id=52 x=0 y=233 width=79 height=104 xoffset=0 yoffset=12 xadvance=79 page=0 chnl=15
+char id=53 x=0 y=126 width=68 height=106 xoffset=0 yoffset=10 xadvance=68 page=0 chnl=15
+char id=54 x=69 y=126 width=68 height=106 xoffset=0 yoffset=10 xadvance=67 page=0 chnl=15
+char id=55 x=138 y=126 width=70 height=106 xoffset=-1 yoffset=10 xadvance=68 page=0 chnl=15
+char id=56 x=209 y=126 width=67 height=106 xoffset=0 yoffset=10 xadvance=67 page=0 chnl=15
+char id=57 x=277 y=126 width=67 height=106 xoffset=-1 yoffset=10 xadvance=65 page=0 chnl=15
+char id=120 x=80 y=233 width=78 height=91 xoffset=-1 yoffset=25 xadvance=76 page=0 chnl=15
+char id=20493 x=233 y=0 width=125 height=123 xoffset=-1 yoffset=-1 xadvance=123 page=0 chnl=15
+char id=25802 x=117 y=0 width=115 height=125 xoffset=-1 yoffset=-1 xadvance=113 page=0 chnl=15
+char id=38651 x=0 y=0 width=116 height=125 xoffset=-1 yoffset=-1 xadvance=114 page=0 chnl=15
