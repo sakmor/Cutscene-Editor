@@ -5,6 +5,11 @@
         let playState = { isPlaying: false, startTime: 0, animationFrameId: null, totalDuration: 0, currentTime: 0 };
         let keyframeClipboard = null;
         let outputMask = { enabled: false, width: 1920, height: 1080 };
+        let exportState = { isExporting: false, currentTime: 0, progress: 0, label: 'Load' };
+        let mp4MuxerLoaderPromise = null;
+        let ffmpegWasmLoaderPromise = null;
+        let ffmpegWasmLoadPromise = null;
+        let ffmpegWasmInstance = null;
 
         let selectedKeyframes = []; // [{ objId, kfIndex }] — 複選影格
         let isoObjectId = null; // ISO 模式：只允許操作此物件的影格，null 表示未啟用
@@ -58,6 +63,14 @@
         const BOTTOM_PANEL_MIN_HEIGHT = 180;
         const WORKSPACE_MIN_HEIGHT = 220;
         const TIMELINE_RESIZER_HEIGHT = 10;
+        const EXPORT_FPS = 30;
+        const EXPORT_VIDEO_BITS_PER_SECOND = 12_000_000;
+        const EXPORT_BACKGROUND_COLOR = '#000000';
+        const EXPORT_IMAGE_QUALITY = 0.92;
+        const MP4_MUXER_LOCAL_PATH = 'assets/js/vendor/mp4-muxer.js';
+        const FFMPEG_WRAPPER_LOCAL_PATH = 'assets/js/vendor/ffmpeg/ffmpeg.js';
+        const FFMPEG_CORE_LOCAL_PATH = 'assets/js/vendor/ffmpeg/ffmpeg-core.js';
+        const FFMPEG_WASM_LOCAL_PATH = 'assets/js/vendor/ffmpeg/ffmpeg-core.wasm';
         let timelineZoom = 1;
         const HEADER_WIDTH = 210;
         const SIDEBAR_SECTION_STORAGE_KEY = 'cutscene-editor.sidebar-sections';
