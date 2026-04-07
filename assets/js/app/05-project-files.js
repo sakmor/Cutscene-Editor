@@ -57,6 +57,8 @@
                     x: Math.round(kf.x),
                     y: Math.round(kf.y),
                     rot: Math.round(kf.rot),
+                    rotX: parseFloat(getNum(kf.rotX, 0).toFixed(2)),
+                    rotY: parseFloat(getNum(kf.rotY, 0).toFixed(2)),
                     scale: parseFloat(kf.scale.toFixed(2)),
                     opacity: parseFloat(kf.opacity.toFixed(2)),
                     tint: normalizeTintHex(kf.tint || DEFAULT_TINT),

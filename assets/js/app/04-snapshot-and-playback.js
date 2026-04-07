@@ -175,7 +175,7 @@
         function applyPoseToDOM(domWrapper, pose) {
             const trackVisible = domWrapper?.dataset?.trackVisible !== 'false';
             const finalVisible = trackVisible && pose.visible !== false;
-            domWrapper.style.transform = `translate(calc(-50% + ${pose.x}px), calc(-50% + ${-pose.y}px)) rotate(${pose.rot}deg) scale(${pose.scale})`;
+            domWrapper.style.transform = `perspective(800px) translate(calc(-50% + ${pose.x}px), calc(-50% + ${-pose.y}px)) rotateX(${getNum(pose.rotX, 0)}deg) rotateY(${getNum(pose.rotY, 0)}deg) rotateZ(${pose.rot}deg) scale(${pose.scale})`;
             domWrapper.style.opacity = pose.opacity;
             domWrapper.style.visibility = finalVisible ? 'visible' : 'hidden';
             domWrapper.style.pointerEvents = (finalVisible && !domWrapper.classList.contains('iso-canvas-dimmed')) ? 'auto' : 'none';
@@ -208,7 +208,10 @@
         function syncInputsWithState(pose) {
             const effects = normalizePoseEffects(pose);
             inputs.x.value = Math.round(pose.x); inputs.y.value = Math.round(pose.y);
-            inputs.rot.value = Math.round(pose.rot); inputs.scale.value = parseFloat(pose.scale.toFixed(2));
+            inputs.rot.value = Math.round(pose.rot);
+            inputs.rotX.value = parseFloat(getNum(pose.rotX, 0).toFixed(2));
+            inputs.rotY.value = parseFloat(getNum(pose.rotY, 0).toFixed(2));
+            inputs.scale.value = parseFloat(pose.scale.toFixed(2));
             inputs.opacity.value = parseFloat(pose.opacity.toFixed(2));
             inputs.tint.value = effects.tint;
             inputs.tintStrength.value = Math.round(effects.tintStrength);
@@ -247,6 +250,8 @@
                         x:       lerp(kfs[i].x,       kfs[i + 1].x,       t),
                         y:       lerp(kfs[i].y,       kfs[i + 1].y,       t),
                         rot:     lerp(kfs[i].rot,     kfs[i + 1].rot,     t),
+                        rotX:    lerp(getNum(kfs[i].rotX, 0), getNum(kfs[i + 1].rotX, 0), t),
+                        rotY:    lerp(getNum(kfs[i].rotY, 0), getNum(kfs[i + 1].rotY, 0), t),
                         scale:   lerp(kfs[i].scale,   kfs[i + 1].scale,   t),
                         opacity: lerp(kfs[i].opacity, kfs[i + 1].opacity, t),
                         visible: t < 1 ? (kfs[i].visible !== false) : (kfs[i + 1].visible !== false),

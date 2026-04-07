@@ -42,7 +42,7 @@
         const DEFAULT_TEXT_ALIGN = 'center';
         const DEFAULT_TEXT_LETTER_SPACING = 0;
         const DEFAULT_POSE = {
-            x: 0, y: 0, rot: 0, scale: 1, opacity: 1, visible: true,
+            x: 0, y: 0, rot: 0, rotX: 0, rotY: 0, scale: 1, opacity: 1, visible: true,
             tint: DEFAULT_TINT, tintStrength: DEFAULT_TINT_STRENGTH,
             hue: DEFAULT_HUE, brightness: DEFAULT_BRIGHTNESS, contrast: DEFAULT_CONTRAST,
             blendMode: DEFAULT_BLEND_MODE
@@ -175,7 +175,9 @@
 
         const inputs = {
             x: document.getElementById('prop-x'), y: document.getElementById('prop-y'),
-            rot: document.getElementById('prop-rot'), scale: document.getElementById('prop-scale'),
+            rot: document.getElementById('prop-rot'),
+            rotX: document.getElementById('prop-rot-x'), rotY: document.getElementById('prop-rot-y'),
+            scale: document.getElementById('prop-scale'),
             opacity: document.getElementById('prop-opacity'),
             tint: document.getElementById('prop-tint'),
             tintStrength: document.getElementById('prop-tint-strength'),
@@ -348,6 +350,8 @@
             x: getNum(inputs.x.value, 0),
             y: getNum(inputs.y.value, 0),
             rot: getNum(inputs.rot.value, 0),
+            rotX: getNum(inputs.rotX.value, 0),
+            rotY: getNum(inputs.rotY.value, 0),
             scale: getNum(inputs.scale.value, 1),
             opacity: getNum(inputs.opacity.value, 1),
             visible: getCurrentVisibleValue(),
@@ -365,7 +369,11 @@
         const getCurrentCameraObject = () => animObjects.find(obj => isCameraObject(obj)) || null;
         const getCurrentCameraPose = () => getCurrentCameraObject()?.currentPose || DEFAULT_CAMERA_POSE;
         const clonePose = (pose = DEFAULT_POSE) => ({
-            x: pose.x, y: pose.y, rot: pose.rot, scale: pose.scale, opacity: pose.opacity, visible: pose.visible !== false,
+            x: pose.x, y: pose.y,
+            rot: pose.rot,
+            rotX: getNum(pose.rotX, 0),
+            rotY: getNum(pose.rotY, 0),
+            scale: pose.scale, opacity: pose.opacity, visible: pose.visible !== false,
             ...normalizePoseEffects(pose)
         });
         const normalizeKeyframe = (kf) => {

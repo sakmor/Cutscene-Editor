@@ -716,8 +716,21 @@
 
             ctx.save();
             ctx.translate(getNum(pose.x, 0), -getNum(pose.y, 0));
-            ctx.rotate((getNum(pose.rot, 0) * Math.PI) / 180);
-            ctx.scale(getNum(pose.scale, 1), getNum(pose.scale, 1));
+            // 正交投影三軸旋轉矩陣 (rotX→rotY→rotZ)
+            const _rX = (getNum(pose.rotX, 0) * Math.PI) / 180;
+            const _rY = (getNum(pose.rotY, 0) * Math.PI) / 180;
+            const _rZ = (getNum(pose.rot,  0) * Math.PI) / 180;
+            const _s  = getNum(pose.scale, 1);
+            const _cX = Math.cos(_rX), _sX = Math.sin(_rX);
+            const _cY = Math.cos(_rY), _sY = Math.sin(_rY);
+            const _cZ = Math.cos(_rZ), _sZ = Math.sin(_rZ);
+            ctx.transform(
+                _cZ * _cY * _s,
+                (_sZ * _cX + _cZ * _sY * _sX) * _s,
+                (-_sZ * _cY) * _s,
+                (_cZ * _cX - _sZ * _sY * _sX) * _s,
+                0, 0
+            );
             ctx.globalAlpha = clamp(getNum(pose.opacity, 1), 0, 1);
             ctx.globalCompositeOperation = getCanvasBlendMode(effects.blendMode);
             ctx.filter = buildCanvasFilter(effects);

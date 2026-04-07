@@ -863,7 +863,9 @@
                     time: kf.time,
                     ...(Object.prototype.hasOwnProperty.call(kf, 'text') ? { text: normalizeKeyframeText(kf.text) } : {}),
                     pose: {
-                        x: kf.x, y: kf.y, rot: kf.rot, scale: kf.scale, opacity: kf.opacity,
+                        x: kf.x, y: kf.y, rot: kf.rot,
+                        rotX: getNum(kf.rotX, 0), rotY: getNum(kf.rotY, 0),
+                        scale: kf.scale, opacity: kf.opacity,
                         ...normalizePoseEffects(kf)
                     }
                 };
@@ -904,6 +906,8 @@
                         x: item.pose.x,
                         y: item.pose.y,
                         rot: item.pose.rot,
+                        rotX: getNum(item.pose.rotX, 0),
+                        rotY: getNum(item.pose.rotY, 0),
                         scale: item.pose.scale,
                         opacity: item.pose.opacity,
                         ...(Object.prototype.hasOwnProperty.call(item, 'text') ? { text: item.text } : {}),
@@ -937,6 +941,8 @@
                             x: item.pose.x,
                             y: item.pose.y,
                             rot: item.pose.rot,
+                            rotX: getNum(item.pose.rotX, 0),
+                            rotY: getNum(item.pose.rotY, 0),
                             scale: item.pose.scale,
                             opacity: item.pose.opacity,
                             ...(Object.prototype.hasOwnProperty.call(item, 'text') ? { text: item.text } : {}),
